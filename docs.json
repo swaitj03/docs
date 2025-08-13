@@ -3,11 +3,11 @@
   "theme": "mint",
   "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#000053",
+    "light": "#1c1c84",
+    "dark": "#000035"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/logo/witsLogo2.png",
   "navigation": {
     "tabs": [
       {
@@ -19,6 +19,16 @@
               "index",
               "quickstart",
               "development"
+            ]
+          },
+          {
+            "group": "Documentation",
+            "pages":[
+              "initialDesignPlan",
+              "hostDocumentation",
+              "database",
+              "testing",
+              "thirdPartyCode"
             ]
           },
           {
@@ -89,8 +99,8 @@
     }
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/witsLogo.jpg",
+    "dark": "/logo/witsLogo.jpg"
   },
   "navbar": {
     "links": [

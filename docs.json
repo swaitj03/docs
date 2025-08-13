@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "SDP Documentation",
   "colors": {
     "primary": "#000053",
     "light": "#1c1c84",
@@ -99,8 +99,8 @@
     }
   },
   "logo": {
-    "light": "/logo/witsLogo.jpg",
-    "dark": "/logo/witsLogo.jpg"
+    "light": "/logo/witsLogo2.png",
+    "dark": "/logo/witsLogo2.png"
   },
   "navbar": {
     "links": [

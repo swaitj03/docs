@@ -22,7 +22,7 @@
           {
             "group": "Documentation",
             "pages":[
-              "initialDesignPlan",
+              "initalDesignPlan",
               "hostDocumentation",
               "database",
               "testing",

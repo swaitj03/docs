@@ -1,10 +1,123 @@
 ---
-title: 'Development Guides'
+title: Development Guides
+description: Coding standards, design patterns, testing strategies, documentation practices, security guidelines, and deployment procedures.
 ---
 
-Coding Standards: Rules for naming variables, writing functions, formatting code, and handling errors. 
-Design Patterns: Recommended approaches for structuring software components and solving common design problems. 
-Testing Strategies: Guidelines for writing unit tests, integration tests, and other types of tests to ensure code quality. 
-Documentation Practices: Standards for documenting code, APIs, and the overall system. 
-Security Considerations: Guidelines for writing secure code and protecting against common vulnerabilities. 
-Deployment Procedures: Instructions for deploying the software to different environments. 
+# Development Guides
+
+This document defines the rules, guidelines, and best practices for writing, testing, documenting, and deploying software.
+
+---
+
+## Coding Standards
+
+
+### Naming Conventions
+
+- **Classes**: Use **PascalCase**.  
+  Examples: `Restaurant`, `MenuItemOut`.
+
+- **Input vs Output Models**: Append `Out` to distinguish output/response models from input/internal models.  
+  Example: `Restaurant` (input) vs `RestaurantOut` (output).
+
+- **Attributes and Variables**: Use **snake_case** for Python fields and variables.  
+  Example: `description`, `location`.
+
+- **External Aliases**: When integrating with databases or APIs, use `Field(alias="...")` to map naming differences.  
+  - Database fields: **snake_case** (e.g., `menu_id`).  
+  - API responses: **camelCase** (e.g., `menuId`).
+
+- **Test Functions**: Use **snake_case** and descriptive names.  
+  Example: `test_root`, `test_create_menu_item`.
+
+### Functions
+
+- **Naming**: Use `snake_case` for function definitions.  
+  Examples: `list_restaurants`, `create_menu_item`.  
+
+- **Dependencies**: Inject dependencies with `Depends(...)`.  
+  Example: `user=Depends(get_current_user)`.  
+
+- **Role Checking**: Use helper functions like `assert_admin` and `assert_user_with_role` for permission validation.  
+
+- **Return Values**: Return structured dictionaries or ORM/DTO models (`BaseModel`) instead of raw database objects.
+
+
+### Formatting
+- **Spacing**: Use one blank line between route functions.  
+- **Line Length**: Keep within 88–100 chars (Black-compatible).  
+- **Docstrings**: Provide short descriptions where helpful.  
+- **Formatting Tool(backend)**: Developers must run:
+
+  ```bash
+  uvx black backend
+
+### Error Handling
+
+- Raise `HTTPException` with proper status codes (`403`, `404`, `400`) for validation and business logic errors.  
+- Use meaningful `detail` messages (`"Admin access required"`, `"Restaurant not found"`).  
+- Default return shape for success: `{"ok": True}` for deletes.
+
+
+---
+
+## Design Patterns
+
+
+- **Router Pattern**: Each resource type (e.g., `/restaurants`, `/menu/items`) gets its own `APIRouter`.  
+- **Separation of Concerns**: Business logic (role validation) is abstracted into helper functions (`assert_admin`, `assert_user_with_role`).  
+- **DTO Models**: Input and output are defined using Pydantic models (`Restaurant`, `RestaurantOut`).  
+- **One-to-One Relationships**: Ensuring menu creation when a restaurant is created demonstrates relational integrity handling.
+
+---
+
+## Testing Strategies
+
+
+### Unit Testing
+- [ ] Placeholder: Define frameworks/tools used and rules for writing unit tests.
+
+### Integration Testing
+- [ ] Placeholder: Guidelines for integration between modules/services.
+
+### Other Tests
+- [ ] Placeholder: Add practices for regression, performance, or acceptance testing.
+
+---
+
+## Documentation Practices
+
+
+- [ ] Placeholder: Standards for inline code comments.
+- [ ] Placeholder: API documentation practices.
+- [ ] Placeholder: System-level documentation (architecture diagrams, ADRs).
+- [ ] Placeholder: README and changelog requirements.
+
+---
+
+## Security Considerations
+
+
+- **Authentication**: Require logged-in users (`Depends(get_current_user)`) for all endpoints.  
+- **Authorization**: Restrict certain endpoints to roles (`assert_admin`, `assert_user_with_role`).  
+- **Input Validation**: Handled via Pydantic models (`Restaurant`, `MenuItem`).  
+- **Error Messages**: Don’t leak sensitive DB/internal details; use generic, user-friendly messages.  
+- **Least Privilege**: Users are only allowed access to permitted roles.  
+
+
+---
+
+## Deployment Procedures
+
+
+- [ ] Placeholder: Development environment setup.
+- [ ] Placeholder: Staging/testing environment process.
+- [ ] Placeholder: Production deployment workflow.
+- [ ] Placeholder: Rollback and recovery procedures.
+
+---
+
+## Summary
+
+This document acts as a reference for engineering practices.  
+Update regularly as needed.

@@ -1,0 +1,37 @@
+---
+title: "Third Party Documentation"
+---
+
+# External API
+
+Our third party API gets email address from our external group and sends marketing emails to them in order to promote WitsEats
+
+For Authentication: an API_key is needed in the request header which will be stored as an environment variable. Without this, any request will be rejected as Unauthorised.
+
+### BASE URL: /api
+
+### GET: /api/emails
+
+Response 200 (If success) 
+```json
+{
+    "emails":[
+        "john@doe.com",
+        "james.white@gmail.com"
+    ]
+}
+```
+
+Response 401 (Unauthorised)
+```json
+{
+    "detail": "Could not validate credentials + [provided_api_key]"
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+ "detail": "Eish, our supabase service key incorrect"
+}
+```

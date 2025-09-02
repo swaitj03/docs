@@ -9,3 +9,239 @@ icon= "code"
 horizontal>
 
 </Card>
+
+# Test Cases
+
+### test_signup_success
+
+Purpose: Verify user can successfully sign-up and be added to the database
+Endpoints: POST /signup
+Input: Valid JSON signup
+Mock Behaviour: create_user returns a user and DB.insert() succeeeds
+Expected Output: 200 (Success) with message "Sign-up successful, check your email to comfirm"
+Covers: Standard successful user creation
+
+### test_signup_user_already_exist
+
+Purpose: Ensure proper error handling if user already exists
+Endpoint: POST /signup
+Input: Dupliacte JSON signup
+Mock Behaviour: create_user raises AuthApiError with email_exists
+Expected Output: 400 (Bad Request) with detail "A user with this email already exists"
+Covers: Edge case of dupliacte user creation
+
+### test_signup_db_insert_fails_and_rolls_back
+
+Purpose: Ensure rollback if DB fails insert after user creation
+Endpoint: POST /signup
+Input: Valid JSON signup
+Mock Behaviour: create_user() succeeeds, however, .insert() raises an exception
+Expected Output: 400 (Bad Request) with detail "Failed to insert" and delete_user() called for rollback
+Covers: Rollback logic on user sign up database insertion failure
+
+### test_get_me_success
+
+Purpose: Verify /me returns authenticated user's data
+Endpoint: GET /me
+Input: N/A
+Mock Behaviour: get_current_user overriden to return mock user
+Expected Output: 200 (Success) with user fields (role, first_name, surname, phone)
+Covers: Profile fetch for logged-in user
+
+### test_update_profile_success
+
+Purpose: Ensure profile update is successful and returns updated data
+Endpoint: PATCH /update-profile
+Input: Valid JSON 
+Mock Behaviour: get_current_user overriden and .update().eq().execute() returns updated data
+Expected Output: 200 (Success) with message "Profile updated successfully" and returns updated user data
+Covers: Profile update
+
+### test_update_profile_not_found
+
+Purpose: Ensure correct error handling if user update has no match
+Endpoint: PATCH /update-profile
+Input: valid JSON 
+Mock Behaviour: .update().eq().execute() returns empty (date = [])
+Expected Output: 404 (Not Found) with detail "Profile not found"
+Covers: Attempting to update on missing profile
+
+### test_get_empty_cart
+
+Purpose: Ensure cart is empty if no items present
+Endpoint: GET /cart/
+Input: N/A
+Mock Behaviour: .select().eq().execute() returns empty list
+Expected Output: 200 (Success) with &#"items": []&#;
+Covers: Cart retrival with no cart items
+
+### test_get_cart_with_items
+
+Purpose: Ensure cart with items is retrieved successfully
+Endpoint: GET /cart/
+Input: N/A
+Mock Behaviour: cart and items mocked in side_effect and menu items are fetched via .in_()
+Expected Output: 200 (Success) with items' details
+Covers: Fetching cart items
+
+### test_add_items_to_new_cart
+
+Purpose: Ensure item is added to cart and if no existing carts, one is made
+Endpoint: POST /cart/
+Input: Valid JSON 
+Mock Behaviour: Menu item and menu fetched with .single(). If no existing cart, .insert() creates new cart with ite,
+Expected Output: 200 (Success) with returned items
+Covers: Cart creation and item insertion
+
+### test_clear_cart
+
+Purpose: Ensure cart can be emptied by user
+Endpoint: DELETE /cart/clear
+Input: N/A
+Mock Behaviour: Cart fetched and deletion successful
+Expected Output: 200 (Success) with ok: True
+Covers: Cart deletion confirmation
+
+### test_get_email_success
+
+Purpose: Ensure successful request returns the email list
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: supa_emails() using AsyncMock and verify_key overriden to return "mock-api-key"
+Expected Output: 200 (Success) with emails
+Covers: Successful authentication and data retrieval
+
+### test_get_emails_unauthorized_no_key
+
+Purpose: Ensure request is rejected with no API key
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: No API key present
+Expected Output: 403 (Forbidden) with details "Not authenticated"
+Covers: Missing header returns error
+
+### test_get_emails_unauthorized_wrong_key
+
+Purpose: Ensure request is rejected with wrong API key
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: Key set as "a-real-key"
+Expected Output: 401 (Unautherized) with details "Could not validate credentials"
+Covers: Rejecting request when using incorrect key 
+
+### test_root_mocked
+
+Purpose: To verify root Endpoint working correctly
+Endpoint: GET /
+Input: N/A
+Mock Behaviour: get_cat is replaced using AsyncMock
+Expected Output: 200 (Success) returned with "fake-cat-image-bytes"
+Covers: Ensures the root route awaits async functionalities
+
+### test_get_past_orders_as_buyer
+
+Purpose: To verify retrival of past completed orders
+Endpoint: GET /buyer/past-orders
+Input: N/A
+Mock Behaviour: Mocks supabase query returning list of completed orders
+Expected Output: 200 (Success) with a list of past orders
+Covers: Past order data retrieval
+
+### test_get_active_order_as_buyer
+
+Purpose: To verify retrieval active order 
+Endpoint: GET /buyer/active-orders
+Input: N/A
+Mock Behaviour: Supabase mock returns order with statis
+Expected Output: 200 (Success) with list of active orders
+Covers: Active order data retrieval
+
+### test_cancel_order_success
+
+Purpose: To verify an order can successfully be cancelled if its still pending
+Endpoint: POST /buyer/cancel-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase .update() mock returns the updated order with status cancelled
+Expected Output: 200 (Success) with success message and updated order data
+Covers: Canceling pending order
+
+### test_cancel_order_fails_if_not_pending
+
+Purpose:  To verify that cancelling order fails if not pending
+Endpoint: POST /buyer/cancel-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase update mock returns empty list
+Expected Output: 400 (Bad Request) with detail "Order cannot be cancelled"
+Covers: Preventing invalid cancelling of order
+
+### test_get_available_orders_as_driver
+
+Purpose: Ensure available orders can be retrieved
+Endpoint: GET /driver/available-orders
+Input: N/A
+Mock Behaviour: Mocks supabase to return one order with a pending status and no driver_id
+Expected Output: 200 (Success) with a list of available orders
+Covers: Retrieval of available orders for drivers to accept 
+
+### test_accept_order_success
+
+Purpose: Ensure an available order can be accepted
+Endpoint: POST /driver/accept-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase mock returns an updated order with status being accepted and a driver_id
+Expected Output: 200 (Success) with confirmation message mad accepted order data
+Covers: Updating of available order to be accepted
+
+### test_accept_order_fails_if_taken
+
+Purpose: Ensure an order cannot be accepted if already taken
+Endpoint: POST /driver/accept-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supavase .update().is_(None) mock returns empty data list
+Expected Output: 400 (Bad Request) with detail "Order already taken"
+Covers: Correct error handling when attempting to accept taken order
+
+### test_get_current_orders_as_driver
+
+Purpose: Ensure successful retrieval of driver's currently active orders
+Endpoint: GET /driver/current-orders
+Input: N/A
+Mock Behaviour: Supabase mock returns orders with matching driver_id and active status
+Expected Output: 200 (Success) with list of current driver orders
+Covers: Retrieval of driver's active orders
+
+### test_list_restaurants_as_buyer
+
+Purpose: Verify successful retrieval of list of restaurants
+Endpoint: GET /restaurants/
+Input: N/A
+Mock Behaviour: Supabase mock returns restaurant list
+Expected Output: 200 (Success) with a list of restaurants
+Covers: Success retrieval of restaurants
+
+### test_create_restaurant_as_admin
+
+Purpose: Ensure new restaurant data added 
+Endpoint: POST /restaurants/
+Input: Valid JSON restaurant data
+Mock Behaviour: Supabase mock checks "admin" role and mock successful insert of new restaurant
+Expected Output: 200 (Success) with inserted restaurant data
+Covers: Successful insertion of new restaurant
+
+### test_create_restaurant_forbidden_as_buyer
+
+Purpose: Verify error handling when none admin tries to add restaurant
+Endpoint: POST /restaurant/
+Input: Valid JSON restaurant data
+Mock Behaviour: Supabase mock checks role and returns error
+Expected Output: 403 (Forbidden) with detail "Admin access required"
+Covers: Proper error handling for unautherized insertion of restaurant data
+
+### test_delete_menu_item_as_admin
+
+Purpose: Ensure deletion of specific menu item
+Endpoint: DELETE /restaurant/menu/items/&#item_id&#
+Input: N/A
+Mock Behaviour: Supabase mock deletion succeeeds
+Expected Output: 200 (Success) with response ok: true
+Covers: Successful deletion of menu item

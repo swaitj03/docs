@@ -1,0 +1,835 @@
+---
+title: "Third Party Documentation"
+---
+
+# External API
+
+Our third party API gets email address from our external group and sends marketing emails to them in order to promote WitsEats
+
+For Authentication: an API_key is needed in the request header which will be stored as an environment variable. Without this, any request will be rejected as Unauthorised.
+
+### Base URL: /api
+
+### GET: /api/emails
+
+Response 200 (If success) 
+```json
+{
+    "emails":[
+        "john@doe.com",
+        "james.white@gmail.com"
+    ]
+}
+```
+
+Response 401 (Unauthorised)
+```json
+{
+    "detail": "Could not validate credentials + [provided_api_key]"
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+ "detail": "Eish, our supabase service key incorrect"
+}
+```
+
+---
+
+# Our API
+
+Authentification: A user must be authenticated as as admin in order to access endpoints.
+get_current_user: A helper function that retrieves the current authenticated user.
+
+assert_admin: This function verifies whether the authenticated user is an admin. If the user is not an admin, a 403 Forbidden error will be returned.
+
+### Base URL: /api
+
+### GET: api/pending/
+
+Response 200 (Success)
+```json
+[
+    {
+        "user_id": "user-id-123",
+        "first_name": "John",
+        "surname": "Doe",
+        "email": "john@doe.com",
+        "phone": "+1234567890",
+        "is_approved": false,
+        "created_at": "2025-01-23T12:00:00Z",
+        "approved_at": null
+    },
+    {
+        "user_id": "user-id-123",
+        "first_name": "Jane",
+        "surname": "Smith",
+        "email": "janesmith@gmail.com",
+        "phone": "+0987654321",
+        "is_approved": false,
+        "created_at": "2025-01-25T12:00:00Z",
+        "approved_at": null
+    }
+]
+```
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Not authenticated"
+}
+```
+Response 403 (Forbidden)
+```json
+{
+    "detail": "You must be an admin to view pending approvals"
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+    "detail": "Failed to fetch pending drivers"
+}
+```
+
+### PUT /api/&#123;user_id&#125;/approve
+
+Request body
+Path Parameteres: user_id
+```json
+{
+    "is_approved": true
+}
+```
+
+Response 200 (Success)
+```json
+{
+    "message": "Driver approved successfully"
+}
+```
+
+or 
+
+```json
+{
+    "message": "Driver rejected successfully"
+}
+```
+
+Response 400 (Invalid Data)
+```json
+{
+    "detail": "Invalid approval data"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Driver approval not found"
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+    "detail": "Failed to update driver approval"
+}
+```
+
+### GET /api/me
+
+Response 200 (Success)
+```json
+{
+    "role": "admin",
+    "first_name": "John",
+    "surname": "Doe",
+    "phone": "+1234567890"
+}
+```
+
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Missing bearer token"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Profile not found"
+}
+```
+
+### POST /api/signup
+
+Request body
+```json
+{
+    "email": "john@doe.com",
+    "password": "password123",
+    "first_name": "John",
+    "surname": "Doe",
+    "phone": "+1234567890",
+    "role": "driver"
+}
+```
+
+Response 200 (Success)
+```json
+{
+    "message": "Sign-up successful, check your email to verify your account"
+}
+```
+
+Response 400 (Bad Request)
+```json
+{
+    "detail": "A user with this email already exists"
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+    "detail": "Unexpected error during signup"
+}
+```
+
+### PATCH /api/update-profile
+
+Request body
+```json
+{
+    "first_name": "Jane",
+    "surname": "Smith",
+    "phone": "+0987654321"
+}
+```
+
+Response 200 (Success)
+```json
+{
+    "message": "Profile updated successfully",
+    "data": {
+        "id": "user-id-123",
+        "first-name": "Jane",
+        "surname": "Smith",
+        "phone": "+0987654321",
+        "email": "janesmith@gmail.com",
+        "role": "buyer"
+    }
+}
+```
+
+Response 400 (Bad Request)
+```json
+{
+    "detail": "Failed to update: <error_message>"
+}
+```
+
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Misisng bearer token"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Profile not found"
+}
+```
+
+### Get /api/buyer/past-orders
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "order-id-123",
+    "address": "123 Street Name, City, Country",
+    "subtotal": 100.0,
+    "delivery_fee": 5.0,
+    "total_price": 105.0,
+    "status": "completed",
+    "created_at": "2023-08-01T12:00:00Z",
+    "updated_at": "2023-08-01T14:00:00Z",
+    "order_items": [
+      {
+        "id": "item-id-1",
+        "menu_item_name": "Burger",
+        "menu_item_price": 15.0,
+        "quantity": 2
+      },
+      {
+        "id": "item-id-2",
+        "menu_item_name": "Fries",
+        "menu_item_price": 5.0,
+        "quantity": 1
+      }
+    ]
+  },
+  {
+    "id": "order-id-124",
+    "address": "456 Another St, City, Country",
+    "subtotal": 50.0,
+    "delivery_fee": 5.0,
+    "total_price": 55.0,
+    "status": "completed",
+    "created_at": "2023-08-05T15:30:00Z",
+    "updated_at": "2023-08-05T16:00:00Z",
+    "order_items": [
+      {
+        "id": "item-id-3",
+        "menu_item_name": "Pizza",
+        "menu_item_price": 20.0,
+        "quantity": 2
+      }
+    ]
+  }
+]
+```
+
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Missing bearer token"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### GET /api/buyer/active-orders
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "order-id-125",
+    "address": "789 Street, City, Country",
+    "subtotal": 60.0,
+    "delivery_fee": 5.0,
+    "total_price": 65.0,
+    "status": "pending",
+    "created_at": "2023-08-10T11:00:00Z",
+    "updated_at": "2023-08-10T11:15:00Z"
+  },
+  {
+    "id": "order-id-126",
+    "address": "321 Another St, City, Country",
+    "subtotal": 30.0,
+    "delivery_fee": 5.0,
+    "total_price": 35.0,
+    "status": "preparing",
+    "created_at": "2023-08-12T16:00:00Z",
+    "updated_at": "2023-08-12T16:30:00Z"
+  }
+]
+```
+
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Missing bearer token"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### POST /api/buyer/cancel-order/&#order_id&#;
+
+Path parameters: order_id
+
+Response 200 (Success)
+```json
+{
+  "message": "Order cancelled",
+  "order": {
+    "id": "order-id-127",
+    "address": "1234 Street, City, Country",
+    "subtotal": 50.0,
+    "delivery_fee": 5.0,
+    "total_price": 55.0,
+    "status": "cancelled",
+    "created_at": "2023-08-15T09:00:00Z",
+    "updated_at": "2023-08-15T09:30:00Z"
+  }
+}
+```
+
+Response 400 (Bad Request)
+```json
+{
+    "detail": "Order cannot be cancelled"
+}
+```
+
+Response 401 (Unauthorized)
+```json
+{
+    "detail": "Missing bearer token"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### POST /api/geo/validate
+
+Request body
+```json
+{
+    "lat": 12.34,
+    "lon": -122.49,
+    "campus_id": 1,
+    "grace_m": 75
+}
+```
+
+Response 200 (Success)
+```json
+{
+    "allowed": true,
+    "reason": null,
+    "snapped": null,
+    "suggested_address": null
+}
+```
+
+Response 500 (Internal Server Error)
+```json
+{
+    "detail": "Function returned no data"
+}
+```
+
+### GET /api/driver/available-orders
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "order123",
+    "address": "123 Main St",
+    "note": "Leave at door",
+    "subtotal": 45.0,
+    "delivery_fee": 5.0,
+    "total_price": 50.0,
+    "created_at": "2025-09-01T12:00:00Z"
+  }
+]
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### POST /api/driver/accept-order/&#order_id&#;
+
+Path parameters: order_id
+
+Response 200 (Success)
+```json
+{
+  "message": "Order accepted",
+  "order": {
+    "id": "order123",
+    "driver_id": "driver456",
+    "status": "accepted",
+    "address": "123 Main St",
+    "note": "Leave at door",
+    "subtotal": 45.0,
+    "delivery_fee": 5.0,
+    "total_price": 50.0,
+    "created_at": "2025-09-01T12:00:00Z"
+  }
+}
+```
+
+Response 400 (Bad Request)
+```json
+{
+    "detail": "Order already taken"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### GET /api/driver/current-orders
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "order456",
+    "address": "456 Elm St",
+    "note": "Call on arrival",
+    "subtotal": 60.0,
+    "delivery_fee": 7.0,
+    "total_price": 67.0,
+    "status": "delivering",
+    "created_at": "2025-09-01T14:00:00Z"
+  }
+]
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### POST /api/driver/complete-order/&#order_id&#;
+
+Path parameters: order_id
+
+Response 200 (Success)
+```json
+{
+  "message": "Order completed",
+  "order": {
+    "id": "order456",
+    "status": "completed",
+    "driver_id": "driver123",
+    "address": "456 Elm St",
+    "note": "Call on arrival",
+    "subtotal": 60.0,
+    "delivery_fee": 7.0,
+    "total_price": 67.0,
+    "created_at": "2025-09-01T14:00:00Z",
+    "updated_at": "2025-09-01T15:00:00Z"
+  }
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Order not found or not yours"
+}
+```
+
+### GET /api/driver/previous-orders
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "order789",
+    "address": "789 Pine Rd",
+    "note": "Use side entrance",
+    "subtotal": 35.0,
+    "delivery_fee": 4.0,
+    "total_price": 39.0,
+    "status": "completed",
+    "created_at": "2025-08-31T10:00:00Z",
+    "updated_at": "2025-08-31T11:30:00Z"
+  }
+]
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Not authorized"
+}
+```
+
+### GET /api/restaurants/
+
+Query Parameters: search
+
+Response 200 (Success)
+```json
+[
+    {
+        "id": "rest123",
+        "name": "Pizza Place",
+        "description": "Yummy Pizza",
+        "location": "Matrix"
+    }
+]
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Insufficient permissions"
+}
+```
+
+### GET /api/restaurant/&#restaurant_id&#;
+
+Path Parameters: restuarant_id
+
+Response 200 (Success)
+```json
+{
+  "id": "rest123",
+  "name": "Pizza Place",
+  "description": "Best pizza in town",
+  "location": "Downtown",
+  "image_url": "https://example.com/image.jpg"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Insufficient permissions"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Restaurant not found"
+}
+```
+
+### POST /api/restaurants/
+
+Request Body
+```json
+{
+    "name": "Jimmies",
+    "description": "Best food around",
+    "location": "West Campus"
+}
+```
+
+Response 200 (Success)
+```json
+{
+  "id": "rest124",
+  "name": "New Bistro",
+  "description": "Cozy French bistro",
+  "location": "Midtown"
+}
+```
+
+Response 400 (Bad Request)
+```json
+{
+    "detail": "Failed to create restaurant"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```
+
+### PUT /api/restaurants/&#restaurant_id&#;
+
+Path parameters: restaurant_id
+
+Request Body
+```json
+{
+    "name": "Jimmies",
+    "description": "Best food around",
+    "location": "West Campus"
+}
+```
+
+Response 200 (Success)
+```json
+{
+  "id": "rest124",
+  "name": "New Bistro",
+  "description": "Cozy French bistro",
+  "location": "Midtown"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Restaurant not found"
+}
+```
+
+### DELETE /api/restaurants/&#restaurant_id&#;
+
+Path parameters: restaurant_id
+
+Response 200 (Success)
+```json
+{
+    "ok": true
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```
+
+### GET /api/restaurants/&#restaurant_id&#;/menu/items
+
+Path parameters: restaurant_id
+
+Response 200 (Success)
+```json
+[
+  {
+    "id": "item123",
+    "menu_id": "menu456",
+    "name": "Margherita Pizza",
+    "description": "Classic tomato and mozzarella",
+    "price": 12.99,
+    "category": "Pizza"
+  }
+]
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Insufficient permissions"
+}
+```
+
+### POST /api/restaurants/&#restaurant_id&#;/menu/items
+
+Path parameters: restaurant_id
+
+Request Body
+```json
+{
+  "name": "Spaghetti",
+  "description": "Classic Italian pasta",
+  "price": 10.99,
+  "category": "Pasta"
+}
+```
+
+Response 200 (Success)
+```json
+{
+  "id": "item789",
+  "menu_id": "menu456",
+  "name": "Spaghetti",
+  "description": "Classic Italian pasta",
+  "price": 10.99,
+  "category": "Pasta"
+}
+```
+
+Response 400 (Not Found)
+```json
+{
+    "detail": "Failed to create menu item"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```
+Response 404 (Not Found)
+```json
+{
+    "detail": "Menu not found for restaurant"
+}
+```
+
+### PUT /api/restaurants/menu/items/&#item_id&#;
+
+Path parameter: item_id
+
+Response 200 (Success)
+```json
+{
+  "id": "item789",
+  "menu_id": "menu456",
+  "name": "Spaghetti Bolognese",
+  "description": "With meat sauce",
+  "price": 13.99,
+  "category": "Pasta"
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```
+
+Response 404 (Not Found)
+```json
+{
+    "detail": "Menu item not found"
+}
+```
+
+### DELETE /api/restaurants/menu/items/&#item_id&#;
+
+Path parameters: item_id
+
+Response 200
+```json
+{
+    "ok": true
+}
+```
+
+Response 403 (Forbidden)
+```json
+{
+    "detail": "Admin access required"
+}
+```

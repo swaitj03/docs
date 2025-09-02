@@ -9,3 +9,129 @@ icon= "code"
 horizontal>
 
 </Card>
+
+# Test Cases
+
+### test_signup_success
+
+Purpose: Verify user can successfully sign-up and be added to the database
+Endpoints: POST /signup
+Input: Valid JSON signup
+Mock Behaviour: create_user returns a user and DB.insert() succeeeds
+Expected Output: 200 (Success) with message "Sign-up successful, check your email to comfirm"
+Covers: Standard successful user creation
+
+### test_signup_user_already_exist
+
+Purpose: Ensure proper error handling if user already exists
+Endpoint: POST /signup
+Input: Dupliacte JSON signup
+Mock Behaviour: create_user raises AuthApiError with email_exists
+Expected Output: 400 (Bad Request) with detail "A user with this email already exists"
+Covers: Edge case of dupliacte user creation
+
+### test_signup_db_insert_fails_and_rolls_back
+
+Purpose: Ensure rollback if DB fails insert after user creation
+Endpoint: POST /signup
+Input: Valid JSON signup
+Mock Behaviour: create_user() succeeeds, however, .insert() raises an exception
+Expected Output: 400 (Bad Request) with detail "Failed to insert" and delete_user() called for rollback
+Covers: Rollback logic on user sign up database insertion failure
+
+### test_get_me_success
+
+Purpose: Verify /me returns authenticated user's data
+Endpoint: GET /me
+Input: N/A
+Mock Behaviour: get_current_user overriden to return mock user
+Expected Output: 200 (Success) with user fields (role, first_name, surname, phone)
+Covers: Profile fetch for logged-in user
+
+### test_update_profile_success
+
+Purpose: Ensure profile update is successful and returns updated data
+Endpoint: PATCH /update-profile
+Input: Valid JSON 
+Mock Behaviour: get_current_user overriden and .update().eq().execute() returns updated data
+Expected Output: 200 (Success) with message "Profile updated successfully" and returns updated user data
+Covers: Profile update
+
+### test_update_profile_not_found
+
+Purpose: Ensure correct error handling if user update has no match
+Endpoint: PATCH /update-profile
+Input: valid JSON 
+Mock Behaviour: .update().eq().execute() returns empty (date = [])
+Expected Output: 404 (Not Found) with detail "Profile not found"
+Covers: Attempting to update on missing profile
+
+### test_get_empty_cart
+
+Purpose: Ensure cart is empty if no items present
+Endpoint: GET /cart/
+Input: N/A
+Mock Behaviour: .select().eq().execute() returns empty list
+Expected Output: 200 (Success) with &#"items": []&#;
+Covers: Cart retrival with no cart items
+
+### test_get_cart_with_items
+
+Purpose: Ensure cart with items is retrieved successfully
+Endpoint: GET /cart/
+Input: N/A
+Mock Behaviour: cart and items mocked in side_effect and menu items are fetched via .in_()
+Expected Output: 200 (Success) with items' details
+Covers: Fetching cart items
+
+### test_add_items_to_new_cart
+
+Purpose: Ensure item is added to cart and if no existing carts, one is made
+Endpoint: POST /cart/
+Input: Valid JSON 
+Mock Behaviour: Menu item and menu fetched with .single(). If no existing cart, .insert() creates new cart with ite,
+Expected Output: 200 (Success) with returned items
+Covers: Cart creation and item insertion
+
+### test_clear_cart
+
+Purpose: Ensure cart can be emptied by user
+Endpoint: DELETE /cart/clear
+Input: N/A
+Mock Behaviour: Cart fetched and deletion successful
+Expected Output: 200 (Success) with ok: True
+Covers: Cart deletion confirmation
+
+### test_get_email_success
+
+Purpose: Ensure successful request returns the email list
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: supa_emails() using AsyncMock and verify_key overriden to return "mock-api-key"
+Expected Output: 200 (Success) with emails
+Covers: Successful authentication and data retrieval
+
+### test_get_emails_unauthorized_no_key
+
+Purpose: Ensure request is rejected with no API key
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: No API key present
+Expected Output: 403 (Forbidden) with details "Not authenticated"
+Covers: Missing header returns error
+
+### test_get_emails_unauthorized_wrong_key
+
+Purpose: Ensure request is rejected with wrong API key
+Endpoint: GET /api/emails
+Input: N/A
+Mock Behaviour: Key set as "a-real-key"
+Expected Output: 401 (Unautherized) with details "Could not validate credentials"
+Covers: Rejecting request when using incorrect key 
+
+Purpose: 
+Endpoint: 
+Input: 
+Mock Behaviour: 
+Expected Output: 
+Covers: 

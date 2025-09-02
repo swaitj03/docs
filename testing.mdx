@@ -129,9 +129,119 @@ Mock Behaviour: Key set as "a-real-key"
 Expected Output: 401 (Unautherized) with details "Could not validate credentials"
 Covers: Rejecting request when using incorrect key 
 
-Purpose: 
-Endpoint: 
-Input: 
-Mock Behaviour: 
-Expected Output: 
-Covers: 
+### test_root_mocked
+
+Purpose: To verify root Endpoint working correctly
+Endpoint: GET /
+Input: N/A
+Mock Behaviour: get_cat is replaced using AsyncMock
+Expected Output: 200 (Success) returned with "fake-cat-image-bytes"
+Covers: Ensures the root route awaits async functionalities
+
+### test_get_past_orders_as_buyer
+
+Purpose: To verify retrival of past completed orders
+Endpoint: GET /buyer/past-orders
+Input: N/A
+Mock Behaviour: Mocks supabase query returning list of completed orders
+Expected Output: 200 (Success) with a list of past orders
+Covers: Past order data retrieval
+
+### test_get_active_order_as_buyer
+
+Purpose: To verify retrieval active order 
+Endpoint: GET /buyer/active-orders
+Input: N/A
+Mock Behaviour: Supabase mock returns order with statis
+Expected Output: 200 (Success) with list of active orders
+Covers: Active order data retrieval
+
+### test_cancel_order_success
+
+Purpose: To verify an order can successfully be cancelled if its still pending
+Endpoint: POST /buyer/cancel-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase .update() mock returns the updated order with status cancelled
+Expected Output: 200 (Success) with success message and updated order data
+Covers: Canceling pending order
+
+### test_cancel_order_fails_if_not_pending
+
+Purpose:  To verify that cancelling order fails if not pending
+Endpoint: POST /buyer/cancel-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase update mock returns empty list
+Expected Output: 400 (Bad Request) with detail "Order cannot be cancelled"
+Covers: Preventing invalid cancelling of order
+
+### test_get_available_orders_as_driver
+
+Purpose: Ensure available orders can be retrieved
+Endpoint: GET /driver/available-orders
+Input: N/A
+Mock Behaviour: Mocks supabase to return one order with a pending status and no driver_id
+Expected Output: 200 (Success) with a list of available orders
+Covers: Retrieval of available orders for drivers to accept 
+
+### test_accept_order_success
+
+Purpose: Ensure an available order can be accepted
+Endpoint: POST /driver/accept-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supabase mock returns an updated order with status being accepted and a driver_id
+Expected Output: 200 (Success) with confirmation message mad accepted order data
+Covers: Updating of available order to be accepted
+
+### test_accept_order_fails_if_taken
+
+Purpose: Ensure an order cannot be accepted if already taken
+Endpoint: POST /driver/accept-order/&#order_id&#;
+Input: N/A
+Mock Behaviour: Supavase .update().is_(None) mock returns empty data list
+Expected Output: 400 (Bad Request) with detail "Order already taken"
+Covers: Correct error handling when attempting to accept taken order
+
+### test_get_current_orders_as_driver
+
+Purpose: Ensure successful retrieval of driver's currently active orders
+Endpoint: GET /driver/current-orders
+Input: N/A
+Mock Behaviour: Supabase mock returns orders with matching driver_id and active status
+Expected Output: 200 (Success) with list of current driver orders
+Covers: Retrieval of driver's active orders
+
+### test_list_restaurants_as_buyer
+
+Purpose: Verify successful retrieval of list of restaurants
+Endpoint: GET /restaurants/
+Input: N/A
+Mock Behaviour: Supabase mock returns restaurant list
+Expected Output: 200 (Success) with a list of restaurants
+Covers: Success retrieval of restaurants
+
+### test_create_restaurant_as_admin
+
+Purpose: Ensure new restaurant data added 
+Endpoint: POST /restaurants/
+Input: Valid JSON restaurant data
+Mock Behaviour: Supabase mock checks "admin" role and mock successful insert of new restaurant
+Expected Output: 200 (Success) with inserted restaurant data
+Covers: Successful insertion of new restaurant
+
+### test_create_restaurant_forbidden_as_buyer
+
+Purpose: Verify error handling when none admin tries to add restaurant
+Endpoint: POST /restaurant/
+Input: Valid JSON restaurant data
+Mock Behaviour: Supabase mock checks role and returns error
+Expected Output: 403 (Forbidden) with detail "Admin access required"
+Covers: Proper error handling for unautherized insertion of restaurant data
+
+### test_delete_menu_item_as_admin
+
+Purpose: Ensure deletion of specific menu item
+Endpoint: DELETE /restaurant/menu/items/&#item_id&#
+Input: N/A
+Mock Behaviour: Supabase mock deletion succeeeds
+Expected Output: 200 (Success) with response ok: true
+Covers: Successful deletion of menu item

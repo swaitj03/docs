@@ -3,6 +3,7 @@ title: "Third Party Documentation"
 ---
 
 # External API
+## Other groups API used
 
 Our third party API gets email address from our external group and sends marketing emails to them in order to promote WitsEats
 
@@ -37,8 +38,79 @@ Response 500 (Internal Server Error)
 ```
 
 ---
+## Other external API's Used
+### Supabase Auth (Authentication Service)
 
+- **Purpose**: Provides user signup, login, and JWT authentication.  
+- **Base URL**: `https://mgxzqglnhoxyhszmwrff.supabase.co/auth/v1`  
+- **Authentication**:  
+  - No authentication required for `signup` and `token?grant_type=password`.  
+  - JWT required for all protected routes.  
+
+#### Example Request (Login)
+```http
+POST /token?grant_type=password
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "mypassword"
+}
+```
+
+#### Example Response
+```json
+{
+  "access_token": "jwt...",
+  "expires_in": 3600,
+  "refresh_token": "..."
+}
+```
+
+### HTML5 Geolocation API (Browser API)
+
+- **Purpose**: Obtains the user’s current latitude and longitude.  
+- **Usage**:
+```javascript
+navigator.geolocation.getCurrentPosition(successCallback, errorCallback, {
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 5000
+});
+```
+- **Authentication**: None (user must allow browser location permission).  
+
+#### Example Response
+```json
+{
+  "coords": {
+    "latitude": -26.1918,
+    "longitude": 28.0276,
+    "accuracy": 12.5
+  }
+}
+```
+
+
+### OpenStreetMap Embed (Map Display)
+
+- **Purpose**: Displays a map centered on the user’s location.  
+- **Usage**:
+```html
+<iframe
+  src="https://www.openstreetmap.org/export/embed.html?bbox=28.022%2C-26.197%2C28.033%2C-26.187&layer=mapnik&marker=-26.1918%2C28.0276"
+  title="map"
+></iframe>
+```
+
+- **Parameters**:  
+  - `bbox` – bounding box of the map viewport  
+  - `marker` – coordinates for the marker (lat, lon)  
+
+- **Authentication**: None (public service).  
+- **Response**: Visual map embed, no JSON output
 # Our API
+All endpoints require Authorization: Bearer ```<token>```, except ```/signup``` which is public.
 
 Authentification: A user must be authenticated as as admin in order to access endpoints.
 get_current_user: A helper function that retrieves the current authenticated user.

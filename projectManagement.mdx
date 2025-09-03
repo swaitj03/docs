@@ -48,25 +48,44 @@ Automated testing with actions <br/>
 Setup codecov <br/>
 Bug tracker <br/>
 Implement external API <br/>
-Third-party documentation <br/>
-Testing documentation <br/>
-Host documentation <br/>
 Consume kamo api and email people <br/>
 Place order api <br/>
-Customer screen account <br/>
-Customer orders screen <br/>
-Customer restaurant screen <br/>
-Customer checkout screen <br/>
-Customer cart screen <br/>
-Customer home screen <br/>
-Orders api <br/>
-Checkout api <br/>
-Cart api <br/>
-Search api <br/>
-Customer delivery screen <br/>
+customer screen account <br/>
+customer orders screen <br/>
+customer restaurant screen <br/>
+customer checkout screen <br/>
+customer cart screen <br/>
+customer home screen <br/>
+orders api <br/>
+checkout api <br/>
+cart api <br/>
+search api <br/>
+customer delivery screen <br/>
 Development guides <br/>
 Git Methodology <br/>
 Project Management and Methodology <br/>
+Database documentation <br/>
+Testing documentation <br/>
+Third-party documentation <br/>
+Bug in driver and buyer page from cart <br/>
+Drivers Navigation <br/>
+Project Management Methodology <br/>
+Customer cart screen <br/>
+Customers current orders screen/api's
+Buyers Navigation <br/>
+Edit buyers profile details <br/>
+Edit driver's profile details <br/>
+Drivers previous orders screen/api's <br/>
+Drivers current orders api's/screens <br/>
+Drivers available orders api's and screens <br/>
+Cart Bug <br/>
+Fix backend errors as seen in tests <br/>
+Customer past orders screen/api <br/>
+Cart API <br/>
+Location screens/api's <br/>
+Approve Driver API <br/>
+Setup order, cart and campus tables<br/>
+Admin approve Drivers screen <br/>
 
 ### User Stories: <br/>
 -As a driver, I want to be able to sign up <br/>
@@ -224,12 +243,12 @@ Daily Standup Focus
 Quick Updates: Focus on progress, blockers, and priority tasks.
 Clear Communication: Encourage team to share what they are working on to avoid overlap and miscommunication.
 
-### Sprint 2 Backlogs:
+### Sprint 2 Backlogs
 
-database documentation <br/>
-testing documentation <br/>
-third-party documentation <br/>
-bug in driver and buyer page from cart <br/>
+Database documentation <br/>
+Testing documentation <br/>
+Third-party documentation <br/>
+Bug in driver and buyer page from cart <br/>
 Drivers Navigation <br/>
 Project Management Methodology <br/>
 Customer cart screen <br/>
@@ -241,4 +260,84 @@ Drivers previous orders screen/api's <br/>
 Drivers current orders api's/screens <br/>
 Drivers available orders api's and screens <br/>
 Cart Bug <br/>
-fix backend errors as seen in tests <br/>
+Fix backend errors as seen in tests <br/>
+Customer past orders screen/api <br/>
+Cart API <br/>
+Location screens/api's <br/>
+Approve Driver API <br/>
+Setup order, cart and campus tables<br/>
+Admin approve Drivers screen <br/>
+
+### Sprint 2 Planning: 23 August
+
+Jonothan: <br/>
+Create automated test cases for geofencing and campus validation. <br/>
+Enhance backend validation functions (e.g. for malformed locations). <br/>
+Add support for campus polygon updates via admin interface.
+
+Connor: <br/>
+Add approval/rejection on the driver admin page. <br/>
+Add filtering and search to the admin driver page. <br/>
+Fix database cascading rules properly and add safety checks.
+
+Jacob: <br/>
+Finalize and test complete checkout flow with cart context. <br/> 
+Add fallback for Geolocation API (e.g., manual address input). <br/>
+Improve handling of edge cases (e.g., location drifting).
+
+Aharon: <br/>
+Add cart quantity update functionality (not just add/remove). <br/>
+Implement optimistic UI updates for cart actions. <br/>
+Refactor cart API to ensure cleaner database operations. <br/>
+
+Jade: <br/>
+Split documentation into per-feature modules. <br/>
+Add screenshots or screen-recordings to docs where relevant. <br/>
+Begin creating a short onboarding doc for new devs/testers. <br/>
+
+### Backlog Refinement: 30 August
+
+Jonothan: <br/>
+Security and Validation: Review and expand the validate_location function for edge cases. Ensure row-level security (RLS) is consistent and audited. <br/>
+Campus Management: Enable tools or scripts to update campus polygons without manual geojson.io work. <br/>
+Order Flow Enhancements: Add additional features to past/active orders (sorting, status updates). <br/>
+Driver Flow Polish: Refine driver pages (Available, Current, Previous) for UX and performance improvements. 
+
+Connor: <br/>
+Admin Features: Finalize driver approvals admin page with complete backend coverage. Improve mobile responsiveness and add missing backend tests. <br/>
+Backend Stability: Fix async issues across endpoints. <br/>
+Ensure proper cascading deletes in DB schema for restaurants and related entities. 
+
+Jacob: <br/>
+Checkout Flow: Finalize the full cart → checkout pipeline integration. Improve accuracy of user location data during checkout. <br/>
+Geolocation & Geofencing: Extend geolocation handling to gracefully fail or notify if users are outside Wits campus. Ensure integration of geolocation with real-time UI feedback. <br/>
+Order API Enhancements: Improve order placing flow for location accuracy and error handling. 
+
+Aharon: <br/>
+Cart Functionality: Add enhancements like quantity updates and better UI feedback on actions. Optimize cart deletion and syncing with backend. <br/>
+Database Relationships: Continue working on normalizing tables and making sure relationships stay consistent when changes are made. <br/>
+Testing: Improve reliability of the cart by adding more backend and frontend test coverage. 
+
+Jade: <br/>
+Documentation: Continue documenting the app’s features and flows. Add more detail to technical documentation where needed. <br/>
+Team Support: Ask teammates for brief summaries or notes on complex features to avoid delays in documentation. <br/>
+Styling Polish: Add final touches and consistency to UI across pages.
+
+### Sprint Retrospective: 1 September
+
+Connor: <br/>
+Improvement: Better deadline management such that tasks are not pushed to last minute.
+
+Jade: <br/>
+Improvement: Better co-ordination on documentation of features
+
+Aharon: <br/>
+Improvement: Deeper upfront understanding of table relationships
+
+### What to do better next time: 
+
+Task Refinement: Assign clear subtasks for complex areas (e.g., cart, admin, authentication) to prevent overlap or unclear ownership.
+Deadline Management: Push for earlier internal deadlines to reduce last-minute development and testing.
+Documentation Process: Encourage each developer to contribute initial docs or notes for features they build.
+Cross-System Testing: Add end-to-end and unit tests to catch issues like table inconsistencies, location failures, or cart sync bugs.
+Communication: Share progress earlier and more frequently across the team to reduce dependency blockers.

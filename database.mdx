@@ -11,7 +11,81 @@ This document describes the database schema for the restaurant management system
 
 The schema uses PostgreSQL with UUID primary keys and automatic timestamp management.
 
+## Schema Design Rationale
+
+### Core Design Principles
+
+**UUID Primary Keys**: All tables use UUIDs instead of auto-incrementing integers to prevent ID conflicts in distributed systems and provide better security by making internal IDs unpredictable.
+
+**Dual Cart System**: The schema includes both `cart_items` (direct) and `carts` + `carts_items` (normalized) approaches to support different use cases:
+- Direct approach allows multi-restaurant carts for comparison shopping
+- Normalized approach enforces restaurant-specific carts for better order management
+
+**Denormalized Order Data**: Order items store `menu_item_name` and `menu_item_price` as separate fields to preserve historical accuracy even when menu items are modified or deleted.
+
+**Spatial Data Integration**: PostGIS geometry types enable location-based features like delivery zone management, distance calculations, and spatial queries for restaurant discovery.
+
+**Role-Based Architecture**: The `user_role` enum and `driver_approvals` table support a multi-role system where users can be customers, drivers, or admins with appropriate approval workflows.
+
+**Cascade vs Set-Null Deletes**: Strategic use of cascade deletes for dependent data (carts, orders) while using set-null for driver references to preserve order history when drivers are removed.
+
 ## Table Structure
+
+### Users Table
+
+The core table storing user information and authentication:
+
+```sql
+create table if not exists public.users (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  first_name text not null,
+  surname text not null,
+  phone text not null,
+  role user_role not null default 'customer',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, references auth.users)
+- `email`: User email address (required)
+- `first_name`: User's first name (required)
+- `surname`: User's surname (required)
+- `phone`: User's phone number (required)
+- `role`: User role (customer, driver, admin) - defaults to 'customer'
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+**Relationships:**
+- Links to external authentication system via `auth.users`
+- Referenced by driver_approvals, carts, cart_items, and orders tables
+
+### Driver Approvals Table
+
+Manages driver approval workflow:
+
+```sql
+create table if not exists public.driver_approvals (
+  user_id uuid primary key references public.users(id) on delete cascade,
+  is_approved boolean not null default false,
+  created_at timestamptz not null default now(),
+  approved_at timestamptz
+);
+```
+
+**Fields:**
+- `user_id`: Foreign key to users table (primary key)
+- `is_approved`: Approval status (defaults to false)
+- `created_at`: Application timestamp
+- `approved_at`: Approval timestamp (nullable)
+
+**Constraints:**
+- One approval record per user
+- Cascade delete when user is removed
+
+**Design Rationale**: Separate approval table allows for audit trail of driver applications and supports approval workflows without cluttering the main users table.
 
 ### Restaurants Table
 
@@ -22,9 +96,10 @@ create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text not null default '',
-  location text not null default '',
+  location geometry not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  image_url text
 );
 ```
 
@@ -32,9 +107,12 @@ create table if not exists public.restaurants (
 - `id`: Unique identifier (UUID, auto-generated)
 - `name`: Restaurant name (required)
 - `description`: Restaurant description
-- `location`: Restaurant location
+- `location`: Restaurant location (PostGIS geometry)
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
+- `image_url`: Restaurant image URL (nullable)
+
+**Design Rationale**: PostGIS geometry type enables spatial queries for location-based features like "find restaurants near me" and delivery zone calculations.
 
 ### Menus Table
 
@@ -87,6 +165,205 @@ create table if not exists public.menu_items (
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
 
+### Carts Table
+
+Represents a user's shopping cart for a specific restaurant:
+
+```sql
+create table if not exists public.carts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `user_id`: Foreign key to users table
+- `restaurant_id`: Foreign key to restaurants table
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+**Constraints:**
+- One cart per user per restaurant
+- Cascade delete when user or restaurant is removed
+
+### Cart Items Table (Direct)
+
+Direct relationship between users and menu items:
+
+```sql
+create table if not exists public.cart_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  menu_item_id uuid not null references public.menu_items(id) on delete cascade,
+  quantity int4 not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `user_id`: Foreign key to users table
+- `menu_item_id`: Foreign key to menu_items table
+- `quantity`: Item quantity (defaults to 1)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+### Carts Items Table (Normalized)
+
+Normalized cart items through the carts table:
+
+```sql
+create table if not exists public.carts_items (
+  id uuid primary key default gen_random_uuid(),
+  cart_id uuid not null references public.carts(id) on delete cascade,
+  menu_item_id uuid not null references public.menu_items(id) on delete cascade,
+  quantity int4 not null default 1,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `cart_id`: Foreign key to carts table
+- `menu_item_id`: Foreign key to menu_items table
+- `quantity`: Item quantity (defaults to 1)
+- `notes`: Special instructions for the item (nullable)
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+**Note:** The presence of both `cart_items` and `carts_items` suggests a potential schema evolution. The `carts_items` table with the `carts` table provides a more normalized structure.
+
+**Design Rationale**: Dual cart system supports different business models - direct approach for multi-restaurant comparison shopping, normalized approach for restaurant-specific ordering with better data organization.
+
+### Orders Table
+
+Records customer orders with delivery information:
+
+```sql
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  driver_id uuid references public.users(id) on delete set null,
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  address text not null,
+  note text,
+  status order_status not null default 'pending',
+  subtotal numeric(10,2) not null default 0,
+  delivery_fee numeric(10,2) not null default 0,
+  total_price numeric(10,2) not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `user_id`: Foreign key to users table (customer)
+- `driver_id`: Foreign key to users table (driver, nullable)
+- `restaurant_id`: Foreign key to restaurants table
+- `address`: Delivery address (required)
+- `note`: Special delivery instructions (nullable)
+- `status`: Order status (pending, accepted, preparing, delivering, completed, canceled)
+- `subtotal`: Order subtotal before delivery fee
+- `delivery_fee`: Delivery fee amount
+- `total_price`: Total order amount including delivery fee
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
+### Order Items Table
+
+Details the specific menu items in each order:
+
+```sql
+create table if not exists public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  menu_item_id uuid not null references public.menu_items(id) on delete cascade,
+  menu_item_name text not null,
+  menu_item_price numeric(10,2) not null,
+  quantity int4 not null default 1,
+  notes text
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `order_id`: Foreign key to orders table
+- `menu_item_id`: Foreign key to menu_items table
+- `menu_item_name`: Denormalized item name (for historical accuracy)
+- `menu_item_price`: Denormalized item price (for historical accuracy)
+- `quantity`: Item quantity (defaults to 1)
+- `notes`: Special instructions for the item (nullable)
+
+**Note:** The `menu_item_name` and `menu_item_price` fields are denormalized to preserve order history even if menu items are later modified or deleted.
+
+**Design Rationale**: Denormalization ensures order history remains accurate and complete even when restaurants update their menus, prices, or remove items. This is critical for customer service, accounting, and legal compliance.
+
+### Campuses Table
+
+Stores campus information for delivery zones:
+
+```sql
+create table if not exists public.campuses (
+  id int4 primary key,
+  name text not null,
+  geom geometry not null,
+  created_at timestamptz not null default now()
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (integer)
+- `name`: Campus name (required)
+- `geom`: Campus geometry (PostGIS geometry)
+- `created_at`: Creation timestamp
+
+**Design Rationale**: Campus-based delivery zones enable efficient order routing, driver assignment, and delivery fee calculations based on geographic boundaries.
+
+### Spatial Reference Systems Table
+
+Standard PostGIS table for spatial reference systems:
+
+```sql
+create table if not exists public.spatial_ref_sys (
+  srid int4 primary key,
+  auth_name varchar(256),
+  auth_srid int4,
+  srtext varchar(2048),
+  proj4text varchar(2048)
+);
+```
+
+**Fields:**
+- `srid`: Spatial reference system identifier (primary key)
+- `auth_name`: Authority name
+- `auth_srid`: Authority's spatial reference system identifier
+- `srtext`: Well-known text representation
+- `proj4text`: PROJ.4 string representation
+
+## Custom Types
+
+### User Role Enum
+
+```sql
+create type user_role as enum ('customer', 'driver', 'admin');
+```
+
+### Order Status Enum
+
+```sql
+create type order_status as enum ('pending', 'accepted', 'preparing', 'delivering', 'completed', 'canceled');
+```
+
+**Design Rationale**: The order status workflow includes an explicit "accepted" state to allow restaurants to confirm orders before preparation begins, providing better order management and customer communication.
+
 ## Automatic Timestamp Management
 
 ### Update Trigger Function
@@ -107,6 +384,11 @@ end $$;
 Triggers are applied to all tables to maintain `updated_at` timestamps:
 
 ```sql
+-- Users trigger
+drop trigger if exists trg_users_updated_at on public.users;
+create trigger trg_users_updated_at before update on public.users
+for each row execute function public.set_updated_at();
+
 -- Restaurants trigger
 drop trigger if exists trg_restaurants_updated_at on public.restaurants;
 create trigger trg_restaurants_updated_at before update on public.restaurants
@@ -121,6 +403,26 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_menu_items_updated_at on public.menu_items;
 create trigger trg_menu_items_updated_at before update on public.menu_items
 for each row execute function public.set_updated_at();
+
+-- Carts trigger
+drop trigger if exists trg_carts_updated_at on public.carts;
+create trigger trg_carts_updated_at before update on public.carts
+for each row execute function public.set_updated_at();
+
+-- Cart items trigger
+drop trigger if exists trg_cart_items_updated_at on public.cart_items;
+create trigger trg_cart_items_updated_at before update on public.cart_items
+for each row execute function public.set_updated_at();
+
+-- Carts items trigger
+drop trigger if exists trg_carts_items_updated_at on public.carts_items;
+create trigger trg_carts_items_updated_at before update on public.carts_items
+for each row execute function public.set_updated_at();
+
+-- Orders trigger
+drop trigger if exists trg_orders_updated_at on public.orders;
+create trigger trg_orders_updated_at before update on public.orders
+for each row execute function public.set_updated_at();
 ```
 
 ## Database Indexes
@@ -128,75 +430,302 @@ for each row execute function public.set_updated_at();
 Performance optimization indexes for common queries:
 
 ```sql
+-- User indexes
+create index if not exists idx_users_email on public.users (email);
+create index if not exists idx_users_role on public.users (role);
+
+-- Restaurant indexes
 create index if not exists idx_restaurants_name on public.restaurants (name);
-create index if not exists idx_restaurants_location on public.restaurants (location);
+create index if not exists idx_restaurants_location on public.restaurants using gist (location);
+
+-- Menu item indexes
 create index if not exists idx_menu_items_name on public.menu_items (name);
 create index if not exists idx_menu_items_category on public.menu_items (category);
+create index if not exists idx_menu_items_menu_id on public.menu_items (menu_id);
+
+-- Cart indexes
+create index if not exists idx_carts_user_id on public.carts (user_id);
+create index if not exists idx_carts_restaurant_id on public.carts (restaurant_id);
+create index if not exists idx_cart_items_user_id on public.cart_items (user_id);
+create index if not exists idx_cart_items_menu_item_id on public.cart_items (menu_item_id);
+create index if not exists idx_carts_items_cart_id on public.carts_items (cart_id);
+create index if not exists idx_carts_items_menu_item_id on public.carts_items (menu_item_id);
+
+-- Order indexes
+create index if not exists idx_orders_user_id on public.orders (user_id);
+create index if not exists idx_orders_driver_id on public.orders (driver_id);
+create index if not exists idx_orders_restaurant_id on public.orders (restaurant_id);
+create index if not exists idx_orders_status on public.orders (status);
+create index if not exists idx_orders_created_at on public.orders (created_at);
+create index if not exists idx_order_items_order_id on public.order_items (order_id);
+create index if not exists idx_order_items_menu_item_id on public.order_items (menu_item_id);
+
+-- Driver approval indexes
+create index if not exists idx_driver_approvals_is_approved on public.driver_approvals (is_approved);
+
+-- Campus indexes
+create index if not exists idx_campuses_geom on public.campuses using gist (geom);
 ```
 
 ## Table Relationships
 
+### Database Schema Diagram
+
+![Database Schema](/images/schemaImageComp.svg)
+
 ### Relationship Diagram
 
 ```
+Users (1) ←→ (0..1) Driver Approvals
+Users (1) ←→ (Many) Carts
+Users (1) ←→ (Many) Cart Items (Direct)
+Users (1) ←→ (Many) Orders (as customer)
+Users (1) ←→ (Many) Orders (as driver)
+
 Restaurants (1) ←→ (1) Menus (1) ←→ (Many) Menu Items
+Restaurants (1) ←→ (Many) Carts
+Restaurants (1) ←→ (Many) Orders
+
+Carts (1) ←→ (Many) Carts Items
+Carts Items (Many) ←→ (1) Menu Items
+
+Orders (1) ←→ (Many) Order Items
+Order Items (Many) ←→ (1) Menu Items
+
+Campuses (1) ←→ (Many) Restaurants (spatial relationship)
 ```
 
 ### Relationship Details
 
-1. **Restaurant → Menu**: One-to-one relationship
+#### User Relationships
+
+1. **User → Driver Approval**: One-to-zero-or-one relationship
+   - Each user can have at most one driver approval record
+   - Driver approval is automatically deleted when user is deleted (cascade)
+
+2. **User → Carts**: One-to-many relationship
+   - Each user can have multiple carts (one per restaurant)
+   - Carts are automatically deleted when user is deleted (cascade)
+
+3. **User → Cart Items (Direct)**: One-to-many relationship
+   - Each user can have multiple direct cart items
+   - Cart items are automatically deleted when user is deleted (cascade)
+
+4. **User → Orders (as Customer)**: One-to-many relationship
+   - Each user can place multiple orders
+   - Orders are automatically deleted when user is deleted (cascade)
+
+5. **User → Orders (as Driver)**: One-to-many relationship
+   - Each user can deliver multiple orders
+   - Driver reference is set to null when user is deleted (set null)
+
+#### Restaurant Relationships
+
+6. **Restaurant → Menu**: One-to-one relationship
    - Each restaurant has exactly one menu
    - Menu is automatically deleted when restaurant is deleted (cascade)
 
-2. **Menu → Menu Items**: One-to-many relationship
+7. **Restaurant → Carts**: One-to-many relationship
+   - Each restaurant can have multiple user carts
+   - Carts are automatically deleted when restaurant is deleted (cascade)
+
+8. **Restaurant → Orders**: One-to-many relationship
+   - Each restaurant can receive multiple orders
+   - Orders are automatically deleted when restaurant is deleted (cascade)
+
+#### Menu Relationships
+
+9. **Menu → Menu Items**: One-to-many relationship
    - Each menu can have multiple menu items
    - Menu items are automatically deleted when menu is deleted (cascade)
 
-3. **Restaurant → Menu Items**: One-to-many relationship (through menu)
-   - Each restaurant can have multiple menu items through its menu
+#### Cart Relationships
+
+10. **Cart → Carts Items**: One-to-many relationship
+    - Each cart can contain multiple items
+    - Cart items are automatically deleted when cart is deleted (cascade)
+
+11. **Carts Items → Menu Items**: Many-to-one relationship
+    - Each cart item references one menu item
+    - Cart items are automatically deleted when menu item is deleted (cascade)
+
+12. **Cart Items (Direct) → Menu Items**: Many-to-one relationship
+    - Each direct cart item references one menu item
+    - Cart items are automatically deleted when menu item is deleted (cascade)
+
+#### Order Relationships
+
+13. **Order → Order Items**: One-to-many relationship
+    - Each order can contain multiple items
+    - Order items are automatically deleted when order is deleted (cascade)
+
+14. **Order Items → Menu Items**: Many-to-one relationship
+    - Each order item references one menu item
+    - Order items are automatically deleted when menu item is deleted (cascade)
+
+#### Spatial Relationships
+
+15. **Campus → Restaurants**: One-to-many relationship (spatial)
+    - Each campus can contain multiple restaurants within its geographic boundary
+    - Spatial queries determine restaurant-campus relationships
 
 ## Data Operations
 
-### Adding a New Restaurant
+### User Management
 
+#### Creating a New User
+When a new user is created:
+1. User record is inserted with UUID from auth.users
+2. Role defaults to 'customer' if not specified
+3. Timestamps are automatically set
+4. User can immediately start using the system
+
+#### Driver Approval Process
+When a user applies to become a driver:
+1. Driver approval record is created with `is_approved = false`
+2. Admin can later update `is_approved = true` and set `approved_at`
+3. Only approved drivers can be assigned to orders
+
+### Restaurant Management
+
+#### Adding a New Restaurant
 When a new restaurant is created:
 1. Restaurant record is inserted with auto-generated UUID
-2. Timestamps are automatically set
-3. A corresponding menu should be created (enforced by application logic)
+2. Location is stored as PostGIS geometry
+3. Timestamps are automatically set
+4. A corresponding menu should be created (enforced by application logic)
 
-### Adding Menu Items
-
+#### Adding Menu Items
 When menu items are added:
 1. Item is linked to existing menu via `menu_id`
 2. Price validation ensures positive values
 3. Category defaults to 'General' if not specified
+4. Timestamps are automatically set
+
+### Cart Operations
+
+#### Adding Items to Cart (Direct Method)
+When using the direct cart_items table:
+1. Item is linked directly to user via `user_id`
+2. Quantity defaults to 1 if not specified
+3. Multiple items from different restaurants can be in the same cart
+
+#### Adding Items to Cart (Normalized Method)
+When using the carts and carts_items tables:
+1. Create or retrieve cart for user-restaurant combination
+2. Add item to cart via `cart_id`
+3. Special notes can be added for individual items
+4. One cart per user per restaurant
+
+### Order Processing
+
+#### Creating an Order
+When a customer places an order:
+1. Order record is created with customer and restaurant references
+2. Delivery address and special instructions are stored
+3. Status is set to 'pending'
+4. Pricing is calculated (subtotal, delivery fee, total)
+5. Order items are created with denormalized menu item data
+
+#### Order Status Updates
+Order status progression:
+1. **pending**: Order received, awaiting restaurant confirmation
+2. **preparing**: Restaurant is preparing the order
+3. **delivering**: Driver has picked up the order
+4. **completed**: Order has been delivered to customer
+5. **cancelled**: Order was cancelled
+6. **accepted**: Order was approved
+
+#### Driver Assignment
+When assigning a driver to an order:
+1. Driver must be approved (`driver_approvals.is_approved = true`)
+2. Driver reference is set in orders table
+3. Order status can be updated to 'delivering'
+
+### Spatial Operations
+
+#### Campus Management
+When managing delivery zones:
+1. Campus boundaries are defined using PostGIS geometry
+2. Restaurants can be spatially queried to determine which campus they belong to
+3. Delivery zones can be used for order routing and driver assignment
 
 ### Deleting Operations
 
 **Cascade Deletion Behavior:**
-- Deleting a restaurant → Deletes associated menu → Deletes all menu items
+- Deleting a user → Deletes driver approval, carts, cart items, and orders
+- Deleting a restaurant → Deletes menu, menu items, carts, and orders
 - Deleting a menu → Deletes all associated menu items
-- Deleting a menu item → Only affects the specific item
+- Deleting a menu item → Deletes cart items and order items (with cascade)
+- Deleting an order → Deletes all associated order items
+- Deleting a cart → Deletes all associated cart items
+
+**Set Null Behavior:**
+- Deleting a driver user → Sets `orders.driver_id` to null (preserves order history)
+
+**Design Rationale**: Using set-null for driver references preserves order history for accounting and customer service purposes, while cascade deletes maintain referential integrity for dependent data like cart items.
 
 ### Update Operations
 
 **Automatic Timestamp Updates:**
-- Any update to restaurant, menu, or menu item automatically updates `updated_at`
+- Any update to any table with `updated_at` field automatically updates the timestamp
 - Triggers ensure consistency across all tables
+- Manual timestamp updates are not recommended
+
+**Data Integrity:**
+- Foreign key constraints prevent orphaned records
+- Enum types ensure valid status and role values
+- Spatial data validation through PostGIS functions
 
 ## Best Practices
 
 ### Data Integrity
 - Use UUIDs for all primary keys to avoid conflicts
-- Implement proper foreign key constraints
+- Implement proper foreign key constraints with appropriate cascade behaviors
 - Use cascade deletes to maintain referential integrity
+- Use enum types for status and role fields to ensure data consistency
+- Denormalize critical order data (name, price) to preserve historical accuracy
 
 ### Performance
-- Indexes on frequently queried fields (name, location, category)
+- Indexes on frequently queried fields (email, role, status, created_at)
+- Use GIST indexes for spatial data (location, geometry)
+- Index foreign key relationships for efficient joins
 - Use timestamptz for timezone-aware timestamps
-- Consider partitioning for large datasets
+- Consider partitioning for large datasets (orders, order_items)
+
+### Spatial Data Management
+- Use PostGIS geometry types for location data
+- Implement spatial indexes (GIST) for geographic queries
+- Validate spatial data using PostGIS functions
+- Consider coordinate system consistency across all spatial data
+
+### Cart Management
+- Choose between direct (cart_items) or normalized (carts + carts_items) approach based on requirements
+- Direct approach allows multi-restaurant carts
+- Normalized approach provides better data organization and restaurant-specific carts
+- Consider implementing cart expiration for abandoned carts
+
+### Order Management
+- Always denormalize menu item data in order_items for historical accuracy
+- Implement proper order status workflow
+- Use soft deletes for orders to maintain audit trail
+- Consider implementing order versioning for complex modifications
+
+### User Management
+- Integrate with external authentication system (auth.users)
+- Implement proper role-based access control
+- Use driver approval workflow for security
+- Maintain audit trail for user role changes
 
 ### Security
 - Use `pgcrypto` extension for secure UUID generation
-- Implement row-level security if needed
+- Implement row-level security for multi-tenant scenarios
 - Validate input data at application level
+- Use parameterized queries to prevent SQL injection
+- Implement proper authentication and authorization checks
+
+### Monitoring and Maintenance
+- Monitor database performance with query analysis
+- Regular maintenance of spatial indexes
+- Implement proper backup strategies for spatial data
+- Monitor cascade delete performance for large datasets

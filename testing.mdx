@@ -245,3 +245,102 @@ Input: N/A
 Mock Behaviour: Supabase mock deletion succeeeds
 Expected Output: 200 (Success) with response ok: true
 Covers: Successful deletion of menu item
+
+### confirmLogoutModal
+
+Purpose: Ensure correct rendering and user interaction behavior of the ConfirmLogoutModal component.
+Component: ConfirmLogoutModal
+Input: Receives open, onConfirm, and onCancel props, with optional title and message.
+Mock Behaviour: Uses Vitest mock functions for onConfirm and onCancel. Simulates user interaction using userEvent.
+Expected Output: Modal does not render when open is false. Renders with default or custom title/message when open is true. Clicking "Log Out" calls onConfirm. Clicking "Cancel" calls onCancel.
+Covers: Modal visibility, rendering of default and custom content, confirm and cancel action handling.
+
+### ProtectedRoute
+
+Purpose: Validate that ProtectedRoute correctly handles route access based on authentication and authorization status.
+Component: ProtectedRoute
+Input: Utilizes the useAuth hook to retrieve user, role, and loading state. Accepts allowedRoles prop to restrict access. Renders child routes or redirects accordingly.
+Mock Behaviour: Mocks useAuth using vi.spyOn to simulate different authentication and role states. Routing is tested using MemoryRouter, with mock components for protected, login, and unauthorized pages.
+Expected Output: Displays “Loading...” message when loading is true. Else redirects unauthenticated users to the login page and authenticated users with incorrect roles to the unauthorized page. Renders protected content when user is authenticated and has the correct role.
+Covers: Loading state handling, unauthenticated access redirection, role-based access control, successful rendering of protected content for valid users.
+
+### Unautherized
+
+Purpose: Confirm that the Unauthorized component renders the correct heading and message for unauthorized access.
+Component: Unauthorized
+Input: No props or external inputs required.
+Mock Behaviour: None; this is a simple static render test.
+Expected Output: Renders a heading with the text “Unauthorized” and a message indicating lack of permission to view the page.
+Covers: Static rendering of unauthorized access message and heading.
+
+### AddRestaurantButton
+
+Purpose: Ensure the AddRestaurantButton renders correctly and triggers the provided click handler.
+Component: AddRestaurantButton
+Input: Accepts an onClick callback prop.
+Mock Behaviour: Uses a vi.fn() mock to verify that the click handler is invoked. userEvent is used to simulate a user click.
+Expected Output: Renders a button labeled “Add Restaurant.” Invokes the onClick function once when clicked.
+Covers: Accessible button rendering and interaction handling through the onClick prop.
+
+### AddRestaurantModal
+
+Purpose: Validate that AddRestaurantModal behaves correctly in terms of visibility, form validation, user interaction, and callback execution.
+Component: AddRestaurantModal
+Input: Receives isOpen to control modal visibility, onClose for cancel handling, and onCreate for form submission with restaurant data.
+Mock Behaviour: Uses vi.fn() to mock onClose and onCreate. User interactions are simulated with userEvent.
+Expected Output: When isOpen is false, the modal is not rendered. When open, input fields are initially empty. Submitting an empty form triggers validation errors and prevents submission. Submitting a valid form trims the input and passes correct data to onCreate. Clicking "Cancel" invokes onClose.
+Covers: Modal visibility control, input initialization, client-side validation, proper data handling on submission, and cancel behavior.
+
+### AddRestaurantTile
+
+Purpose: Ensure that AddRestaurantTile renders correctly and executes the provided onClick handler when interacted with.
+Component: AddRestaurantTile
+Input: Accepts a single onClick callback prop.
+Mock Behaviour: Uses vi.fn() to mock the onClick handler. Simulates user interaction using userEvent.
+Expected Output: Renders a button labeled "Add Restaurant" that is accessible. Invokes the onClick function once when the button is clicked.
+Covers: Button rendering with accessible label and functional click event handling.
+
+### AdminSearcher
+
+Purpose: Confirm that AdminSearchBar renders with the correct initial value and triggers the onChange handler with updated input.
+Component: AdminSearchBar
+Input: Accepts a value string and an onChange callback function to handle user input.
+Mock Behaviour: Mocks onChange using vi.fn(). Simulates controlled component behavior by manually re-rendering with updated value. Uses userEvent to simulate typing.
+Expected Output: Renders an input field pre-filled with the given value. As the user types, the onChange handler is called with the updated value on each keystroke, and the final call reflects the complete input string.
+Covers: Controlled component behavior, initial value rendering, and accurate onChange callback execution during user interaction.
+
+### EditMenuModal
+
+Purpose: Verify that EditMenuModal correctly renders initial menu items, allows adding and deleting items, and calls the save handler with updated data.
+Component: EditMenuModal
+Input: Accepts isOpen to control visibility, an initialItems array representing menu items, and callback props onClose and onSave.
+Mock Behaviour: Uses vi.fn() to mock onSave. Simulates user interactions such as clicking buttons and typing with userEvent.
+Expected Output: When opened, the modal renders the initial menu items sorted by category. Adding an item increases the total inputs reflecting both desktop and mobile layouts. Deleting removes the item inputs from the DOM. Saving calls onSave with the updated list when the form is valid.
+Covers: Rendering sorted items, adding and deleting menu items, and triggering save with updated data.
+
+### EditRestaurantModal
+
+Purpose: Verify that EditRestaurantModal renders with initial data, allows editing of form fields, and calls onSave with updated data when submitted.
+Component: EditRestaurantModal
+Input: Receives isOpen to control visibility, initial containing restaurant data, and callbacks onClose and onSave.
+Mock Behaviour: Uses vi.fn() to mock the onSave callback. Simulates user input and button click with userEvent.
+Expected Output: The form fields are pre-populated with initial data. Users can edit input fields and the changes are reflected. When the save button is clicked, onSave is called once with the updated restaurant information.
+Covers: Form data initialization, user input handling, and form submission with updated values.
+
+### RestaurantCard
+
+Purpose: Verify that RestaurantCard displays restaurant details correctly and triggers the onOpen callback with the correct ID when clicked.
+Component: RestaurantCard
+Input: Receives a restaurant object with details and an onOpen callback.
+Mock Behaviour: Uses vi.fn() to mock onOpen. Simulates user click with userEvent.
+Expected Output: Renders the restaurant’s name, location, and description. Clicking the card calls onOpen once with the restaurant’s ID.
+Covers: Proper rendering of restaurant data and handling of click events.
+
+### AdminDashboard
+
+Purpose: Verify that the AdminDashboard component correctly handles loading, data fetching, error states, and modal interactions.
+Component: AdminDashboard
+Input: Uses mocked API calls to fetchRestaurants and mocks authentication context with useAuth.
+Mock Behaviour: The API fetchRestaurants is mocked to resolve with data, reject with an error, or return an empty list. The auth context is mocked to provide a fake session token.
+Expected Output: Initially displays a loading message, then renders fetched restaurants on success. Shows an empty state with an add restaurant button on failure. Clicking the add restaurant button opens the modal dialog.
+Covers: Loading state display, successful and failed API fetches, and modal open interaction.

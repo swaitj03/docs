@@ -1,247 +1,338 @@
 ---
 title: "Testing Documentation"
-description: "Welcome to the new home for your documentation"
 ---
-
-<Card
-title="Testing Strategy"
-icon= "code"
-horizontal>
-
-</Card>
 
 # Test Cases
 
 ### test_signup_success
 
-Purpose: Verify user can successfully sign-up and be added to the database
-Endpoints: POST /signup
-Input: Valid JSON signup
-Mock Behaviour: create_user returns a user and DB.insert() succeeeds
-Expected Output: 200 (Success) with message "Sign-up successful, check your email to comfirm"
-Covers: Standard successful user creation
+Purpose: Verify user can successfully sign-up and be added to the database<br/>
+Endpoints: POST /signup<br/>
+Input: Valid JSON signup<br/>
+Mock Behaviour: create_user returns a user and DB.insert() succeeeds<br/>
+Expected Output: 200 (Success) with message "Sign-up successful, check your email to comfirm"<br/>
+Covers: Standard successful user creation<br/>
 
 ### test_signup_user_already_exist
 
-Purpose: Ensure proper error handling if user already exists
-Endpoint: POST /signup
-Input: Dupliacte JSON signup
-Mock Behaviour: create_user raises AuthApiError with email_exists
-Expected Output: 400 (Bad Request) with detail "A user with this email already exists"
-Covers: Edge case of dupliacte user creation
+Purpose: Ensure proper error handling if user already exists<br/>
+Endpoint: POST /signup<br/>
+Input: Dupliacte JSON signup<br/>
+Mock Behaviour: create_user raises AuthApiError with email_exists<br/>
+Expected Output: 400 (Bad Request) with detail "A user with this email already exists"<br/>
+Covers: Edge case of dupliacte user creation<br/>
 
 ### test_signup_db_insert_fails_and_rolls_back
 
-Purpose: Ensure rollback if DB fails insert after user creation
-Endpoint: POST /signup
-Input: Valid JSON signup
-Mock Behaviour: create_user() succeeeds, however, .insert() raises an exception
-Expected Output: 400 (Bad Request) with detail "Failed to insert" and delete_user() called for rollback
-Covers: Rollback logic on user sign up database insertion failure
+Purpose: Ensure rollback if DB fails insert after user creation<br/>
+Endpoint: POST /signup<br/>
+Input: Valid JSON signup<br/>
+Mock Behaviour: create_user() succeeeds, however, .insert() raises an exception<br/>
+Expected Output: 400 (Bad Request) with detail "Failed to insert" and delete_user() called for rollback<br/>
+Covers: Rollback logic on user sign up database insertion failure<br/>
 
 ### test_get_me_success
 
-Purpose: Verify /me returns authenticated user's data
-Endpoint: GET /me
-Input: N/A
-Mock Behaviour: get_current_user overriden to return mock user
-Expected Output: 200 (Success) with user fields (role, first_name, surname, phone)
-Covers: Profile fetch for logged-in user
+Purpose: Verify /me returns authenticated user's data<br/>
+Endpoint: GET /me<br/>
+Input: N/A<br/>
+Mock Behaviour: get_current_user overriden to return mock user<br/>
+Expected Output: 200 (Success) with user fields (role, first_name, surname, phone)<br/>
+Covers: Profile fetch for logged-in user<br/>
 
 ### test_update_profile_success
 
-Purpose: Ensure profile update is successful and returns updated data
-Endpoint: PATCH /update-profile
-Input: Valid JSON 
-Mock Behaviour: get_current_user overriden and .update().eq().execute() returns updated data
-Expected Output: 200 (Success) with message "Profile updated successfully" and returns updated user data
-Covers: Profile update
+Purpose: Ensure profile update is successful and returns updated data<br/>
+Endpoint: PATCH /update-profile<br/>
+Input: Valid JSON <br/>
+Mock Behaviour: get_current_user overriden and .update().eq().execute() returns updated data<br/>
+Expected Output: 200 (Success) with message "Profile updated successfully" and returns updated user data<br/>
+Covers: Profile update<br/>
 
 ### test_update_profile_not_found
 
-Purpose: Ensure correct error handling if user update has no match
-Endpoint: PATCH /update-profile
-Input: valid JSON 
-Mock Behaviour: .update().eq().execute() returns empty (date = [])
-Expected Output: 404 (Not Found) with detail "Profile not found"
-Covers: Attempting to update on missing profile
+Purpose: Ensure correct error handling if user update has no match<br/>
+Endpoint: PATCH /update-profile<br/>
+Input: valid JSON <br/>
+Mock Behaviour: .update().eq().execute() returns empty (date = [])<br/>
+Expected Output: 404 (Not Found) with detail "Profile not found"<br/>
+Covers: Attempting to update on missing profile<br/>
 
 ### test_get_empty_cart
 
-Purpose: Ensure cart is empty if no items present
-Endpoint: GET /cart/
-Input: N/A
-Mock Behaviour: .select().eq().execute() returns empty list
-Expected Output: 200 (Success) with &#"items": []&#;
-Covers: Cart retrival with no cart items
+Purpose: Ensure cart is empty if no items present<br/>
+Endpoint: GET /cart/<br/>
+Input: N/A<br/>
+Mock Behaviour: .select().eq().execute() returns empty list<br/>
+Expected Output: 200 (Success) with &#"items": []&#;<br/>
+Covers: Cart retrival with no cart items<br/>
 
 ### test_get_cart_with_items
 
-Purpose: Ensure cart with items is retrieved successfully
-Endpoint: GET /cart/
-Input: N/A
-Mock Behaviour: cart and items mocked in side_effect and menu items are fetched via .in_()
-Expected Output: 200 (Success) with items' details
-Covers: Fetching cart items
+Purpose: Ensure cart with items is retrieved successfully<br/>
+Endpoint: GET /cart/<br/>
+Input: N/A<br/>
+Mock Behaviour: cart and items mocked in side_effect and menu items are fetched via .in_()<br/>
+Expected Output: 200 (Success) with items' details<br/>
+Covers: Fetching cart items<br/>
 
 ### test_add_items_to_new_cart
 
-Purpose: Ensure item is added to cart and if no existing carts, one is made
-Endpoint: POST /cart/
-Input: Valid JSON 
-Mock Behaviour: Menu item and menu fetched with .single(). If no existing cart, .insert() creates new cart with ite,
-Expected Output: 200 (Success) with returned items
-Covers: Cart creation and item insertion
+Purpose: Ensure item is added to cart and if no existing carts, one is made<br/>
+Endpoint: POST /cart/<br/>
+Input: Valid JSON <br/>
+Mock Behaviour: Menu item and menu fetched with .single(). If no existing cart, .insert() creates new cart with ite,<br/>
+Expected Output: 200 (Success) with returned items<br/>
+Covers: Cart creation and item insertion<br/>
 
 ### test_clear_cart
 
-Purpose: Ensure cart can be emptied by user
-Endpoint: DELETE /cart/clear
-Input: N/A
-Mock Behaviour: Cart fetched and deletion successful
-Expected Output: 200 (Success) with ok: True
-Covers: Cart deletion confirmation
+Purpose: Ensure cart can be emptied by user<br/>
+Endpoint: DELETE /cart/clear<br/>
+Input: N/A<br/>
+Mock Behaviour: Cart fetched and deletion successful<br/>
+Expected Output: 200 (Success) with ok: True<br/>
+Covers: Cart deletion confirmation<br/>
 
 ### test_get_email_success
 
-Purpose: Ensure successful request returns the email list
-Endpoint: GET /api/emails
-Input: N/A
-Mock Behaviour: supa_emails() using AsyncMock and verify_key overriden to return "mock-api-key"
-Expected Output: 200 (Success) with emails
-Covers: Successful authentication and data retrieval
+Purpose: Ensure successful request returns the email list<br/>
+Endpoint: GET /api/emails<br/>
+Input: N/A<br/>
+Mock Behaviour: supa_emails() using AsyncMock and verify_key overriden to return "mock-api-key"<br/>
+Expected Output: 200 (Success) with emails<br/>
+Covers: Successful authentication and data retrieval<br/>
 
 ### test_get_emails_unauthorized_no_key
 
-Purpose: Ensure request is rejected with no API key
-Endpoint: GET /api/emails
-Input: N/A
-Mock Behaviour: No API key present
-Expected Output: 403 (Forbidden) with details "Not authenticated"
-Covers: Missing header returns error
+Purpose: Ensure request is rejected with no API key<br/>
+Endpoint: GET /api/emails<br/>
+Input: N/A<br/>
+Mock Behaviour: No API key present<br/>
+Expected Output: 403 (Forbidden) with details "Not authenticated"<br/>
+Covers: Missing header returns error<br/>
 
 ### test_get_emails_unauthorized_wrong_key
 
-Purpose: Ensure request is rejected with wrong API key
-Endpoint: GET /api/emails
-Input: N/A
-Mock Behaviour: Key set as "a-real-key"
-Expected Output: 401 (Unautherized) with details "Could not validate credentials"
-Covers: Rejecting request when using incorrect key 
+Purpose: Ensure request is rejected with wrong API key<br/>
+Endpoint: GET /api/emails<br/>
+Input: N/A<br/>
+Mock Behaviour: Key set as "a-real-key"<br/>
+Expected Output: 401 (Unautherized) with details "Could not validate credentials"<br/>
+Covers: Rejecting request when using incorrect key <br/>
 
 ### test_root_mocked
 
-Purpose: To verify root Endpoint working correctly
-Endpoint: GET /
-Input: N/A
-Mock Behaviour: get_cat is replaced using AsyncMock
-Expected Output: 200 (Success) returned with "fake-cat-image-bytes"
-Covers: Ensures the root route awaits async functionalities
+Purpose: To verify root Endpoint working correctly<br/>
+Endpoint: GET /<br/>
+Input: N/A<br/>
+Mock Behaviour: get_cat is replaced using AsyncMock<br/>
+Expected Output: 200 (Success) returned with "fake-cat-image-bytes"<br/>
+Covers: Ensures the root route awaits async functionalities<br/>
 
 ### test_get_past_orders_as_buyer
 
-Purpose: To verify retrival of past completed orders
-Endpoint: GET /buyer/past-orders
-Input: N/A
-Mock Behaviour: Mocks supabase query returning list of completed orders
-Expected Output: 200 (Success) with a list of past orders
-Covers: Past order data retrieval
+Purpose: To verify retrival of past completed orders<br/>
+Endpoint: GET /buyer/past-orders<br/>
+Input: N/A<br/>
+Mock Behaviour: Mocks supabase query returning list of completed orders<br/>
+Expected Output: 200 (Success) with a list of past orders<br/>
+Covers: Past order data retrieval<br/>
 
 ### test_get_active_order_as_buyer
 
-Purpose: To verify retrieval active order 
-Endpoint: GET /buyer/active-orders
-Input: N/A
-Mock Behaviour: Supabase mock returns order with statis
-Expected Output: 200 (Success) with list of active orders
-Covers: Active order data retrieval
+Purpose: To verify retrieval active order <br/>
+Endpoint: GET /buyer/active-orders<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase mock returns order with statis<br/>
+Expected Output: 200 (Success) with list of active orders<br/>
+Covers: Active order data retrieval<br/>
 
 ### test_cancel_order_success
 
-Purpose: To verify an order can successfully be cancelled if its still pending
-Endpoint: POST /buyer/cancel-order/&#order_id&#;
-Input: N/A
-Mock Behaviour: Supabase .update() mock returns the updated order with status cancelled
-Expected Output: 200 (Success) with success message and updated order data
-Covers: Canceling pending order
+Purpose: To verify an order can successfully be cancelled if its still pending<br/>
+Endpoint: POST /buyer/cancel-order/&#order_id&#;<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase .update() mock returns the updated order with status cancelled<br/>
+Expected Output: 200 (Success) with success message and updated order data<br/>
+Covers: Canceling pending order<br/>
 
 ### test_cancel_order_fails_if_not_pending
 
-Purpose:  To verify that cancelling order fails if not pending
-Endpoint: POST /buyer/cancel-order/&#order_id&#;
-Input: N/A
-Mock Behaviour: Supabase update mock returns empty list
-Expected Output: 400 (Bad Request) with detail "Order cannot be cancelled"
-Covers: Preventing invalid cancelling of order
+Purpose:  To verify that cancelling order fails if not pending<br/>
+Endpoint: POST /buyer/cancel-order/&#order_id&#;<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase update mock returns empty list<br/>
+Expected Output: 400 (Bad Request) with detail "Order cannot be cancelled"<br/>
+Covers: Preventing invalid cancelling of order<br/>
 
 ### test_get_available_orders_as_driver
 
-Purpose: Ensure available orders can be retrieved
-Endpoint: GET /driver/available-orders
-Input: N/A
-Mock Behaviour: Mocks supabase to return one order with a pending status and no driver_id
-Expected Output: 200 (Success) with a list of available orders
-Covers: Retrieval of available orders for drivers to accept 
+Purpose: Ensure available orders can be retrieved<br/>
+Endpoint: GET /driver/available-orders<br/>
+Input: N/A<br/>
+Mock Behaviour: Mocks supabase to return one order with a pending status and no driver_id<br/>
+Expected Output: 200 (Success) with a list of available orders<br/>
+Covers: Retrieval of available orders for drivers to accept <br/>
 
 ### test_accept_order_success
 
-Purpose: Ensure an available order can be accepted
-Endpoint: POST /driver/accept-order/&#order_id&#;
-Input: N/A
-Mock Behaviour: Supabase mock returns an updated order with status being accepted and a driver_id
-Expected Output: 200 (Success) with confirmation message mad accepted order data
-Covers: Updating of available order to be accepted
+Purpose: Ensure an available order can be accepted<br/>
+Endpoint: POST /driver/accept-order/&#order_id&#;<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase mock returns an updated order with status being accepted and a driver_id<br/>
+Expected Output: 200 (Success) with confirmation message mad accepted order data<br/>
+Covers: Updating of available order to be accepted<br/>
 
 ### test_accept_order_fails_if_taken
 
-Purpose: Ensure an order cannot be accepted if already taken
-Endpoint: POST /driver/accept-order/&#order_id&#;
-Input: N/A
-Mock Behaviour: Supavase .update().is_(None) mock returns empty data list
-Expected Output: 400 (Bad Request) with detail "Order already taken"
-Covers: Correct error handling when attempting to accept taken order
+Purpose: Ensure an order cannot be accepted if already taken<br/>
+Endpoint: POST /driver/accept-order/&#order_id&#;<br/>
+Input: N/A<br/>
+Mock Behaviour: Supavase .update().is_(None) mock returns empty data list<br/>
+Expected Output: 400 (Bad Request) with detail "Order already taken"<br/>
+Covers: Correct error handling when attempting to accept taken order<br/>
 
 ### test_get_current_orders_as_driver
 
-Purpose: Ensure successful retrieval of driver's currently active orders
-Endpoint: GET /driver/current-orders
-Input: N/A
-Mock Behaviour: Supabase mock returns orders with matching driver_id and active status
-Expected Output: 200 (Success) with list of current driver orders
-Covers: Retrieval of driver's active orders
+Purpose: Ensure successful retrieval of driver's currently active orders<br/>
+Endpoint: GET /driver/current-orders<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase mock returns orders with matching driver_id and active status<br/>
+Expected Output: 200 (Success) with list of current driver orders<br/>
+Covers: Retrieval of driver's active orders<br/>
 
 ### test_list_restaurants_as_buyer
 
-Purpose: Verify successful retrieval of list of restaurants
-Endpoint: GET /restaurants/
-Input: N/A
-Mock Behaviour: Supabase mock returns restaurant list
-Expected Output: 200 (Success) with a list of restaurants
-Covers: Success retrieval of restaurants
+Purpose: Verify successful retrieval of list of restaurants<br/>
+Endpoint: GET /restaurants/<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase mock returns restaurant list<br/>
+Expected Output: 200 (Success) with a list of restaurants<br/>
+Covers: Success retrieval of restaurants<br/>
 
 ### test_create_restaurant_as_admin
 
-Purpose: Ensure new restaurant data added 
-Endpoint: POST /restaurants/
-Input: Valid JSON restaurant data
-Mock Behaviour: Supabase mock checks "admin" role and mock successful insert of new restaurant
-Expected Output: 200 (Success) with inserted restaurant data
-Covers: Successful insertion of new restaurant
+Purpose: Ensure new restaurant data added <br/>
+Endpoint: POST /restaurants/<br/>
+Input: Valid JSON restaurant data<br/>
+Mock Behaviour: Supabase mock checks "admin" role and mock successful insert of new restaurant<br/>
+Expected Output: 200 (Success) with inserted restaurant data<br/>
+Covers: Successful insertion of new restaurant<br/>
 
 ### test_create_restaurant_forbidden_as_buyer
 
-Purpose: Verify error handling when none admin tries to add restaurant
-Endpoint: POST /restaurant/
-Input: Valid JSON restaurant data
-Mock Behaviour: Supabase mock checks role and returns error
-Expected Output: 403 (Forbidden) with detail "Admin access required"
-Covers: Proper error handling for unautherized insertion of restaurant data
+Purpose: Verify error handling when none admin tries to add restaurant<br/>
+Endpoint: POST /restaurant/<br/>
+Input: Valid JSON restaurant data<br/>
+Mock Behaviour: Supabase mock checks role and returns error<br/>
+Expected Output: 403 (Forbidden) with detail "Admin access required"<br/>
+Covers: Proper error handling for unautherized insertion of restaurant data<br/>
 
 ### test_delete_menu_item_as_admin
 
-Purpose: Ensure deletion of specific menu item
-Endpoint: DELETE /restaurant/menu/items/&#item_id&#
-Input: N/A
-Mock Behaviour: Supabase mock deletion succeeeds
-Expected Output: 200 (Success) with response ok: true
-Covers: Successful deletion of menu item
+Purpose: Ensure deletion of specific menu item<br/>
+Endpoint: DELETE /restaurant/menu/items/&#item_id&#<br/>
+Input: N/A<br/>
+Mock Behaviour: Supabase mock deletion succeeeds<br/>
+Expected Output: 200 (Success) with response ok: true<br/>
+Covers: Successful deletion of menu item<br/>
+
+### confirmLogoutModal
+
+Purpose: Ensure correct rendering and user interaction behavior of the ConfirmLogoutModal component.<br/>
+Component: ConfirmLogoutModal<br/>
+Input: Receives open, onConfirm, and onCancel props, with optional title and message.<br/>
+Mock Behaviour: Uses Vitest mock functions for onConfirm and onCancel. Simulates user interaction using userEvent.<br/>
+Expected Output: Modal does not render when open is false. Renders with default or custom title/message when open is true. Clicking "Log Out" calls onConfirm. Clicking "Cancel" calls onCancel.<br/>
+Covers: Modal visibility, rendering of default and custom content, confirm and cancel action handling.<br/>
+
+### ProtectedRoute
+
+Purpose: Validate that ProtectedRoute correctly handles route access based on authentication and authorization status.<br/>
+Component: ProtectedRoute<br/>
+Input: Utilizes the useAuth hook to retrieve user, role, and loading state. Accepts allowedRoles prop to restrict access. Renders child routes or redirects accordingly.<br/>
+Mock Behaviour: Mocks useAuth using vi.spyOn to simulate different authentication and role states. Routing is tested using MemoryRouter, with mock components for protected, login, and unauthorized pages.<br/>
+Expected Output: Displays “Loading...” message when loading is true. Else redirects unauthenticated users to the login page and authenticated users with incorrect roles to the unauthorized page. Renders protected content when user is authenticated and has the correct role.<br/>
+Covers: Loading state handling, unauthenticated access redirection, role-based access control, successful rendering of protected content for valid users.<br/>
+
+### Unautherized
+
+Purpose: Confirm that the Unauthorized component renders the correct heading and message for unauthorized access.<br/>
+Component: Unauthorized<br/>
+Input: No props or external inputs required.<br/>
+Mock Behaviour: None; this is a simple static render test.<br/>
+Expected Output: Renders a heading with the text “Unauthorized” and a message indicating lack of permission to view the page.<br/>
+Covers: Static rendering of unauthorized access message and heading.<br/>
+
+### AddRestaurantButton
+
+Purpose: Ensure the AddRestaurantButton renders correctly and triggers the provided click handler.<br/>
+Component: AddRestaurantButton<br/>
+Input: Accepts an onClick callback prop.<br/>
+Mock Behaviour: Uses a vi.fn() mock to verify that the click handler is invoked. userEvent is used to simulate a user click.<br/>
+Expected Output: Renders a button labeled “Add Restaurant.” Invokes the onClick function once when clicked.<br/>
+Covers: Accessible button rendering and interaction handling through the onClick prop.<br/>
+
+### AddRestaurantModal
+
+Purpose: Validate that AddRestaurantModal behaves correctly in terms of visibility, form validation, user interaction, and callback execution.<br/>
+Component: AddRestaurantModal<br/>
+Input: Receives isOpen to control modal visibility, onClose for cancel handling, and onCreate for form submission with restaurant data.<br/>
+Mock Behaviour: Uses vi.fn() to mock onClose and onCreate. User interactions are simulated with userEvent.<br/>
+Expected Output: When isOpen is false, the modal is not rendered. When open, input fields are initially empty. Submitting an empty form triggers validation errors and prevents submission. Submitting a valid form trims the input and passes correct data to onCreate. Clicking "Cancel" invokes onClose.<br/>
+Covers: Modal visibility control, input initialization, client-side validation, proper data handling on submission, and cancel behavior.<br/>
+
+### AddRestaurantTile
+
+Purpose: Ensure that AddRestaurantTile renders correctly and executes the provided onClick handler when interacted with.<br/>
+Component: AddRestaurantTile<br/>
+Input: Accepts a single onClick callback prop.<br/>
+Mock Behaviour: Uses vi.fn() to mock the onClick handler. Simulates user interaction using userEvent.<br/>
+Expected Output: Renders a button labeled "Add Restaurant" that is accessible. Invokes the onClick function once when the button is clicked.<br/>
+Covers: Button rendering with accessible label and functional click event handling.<br/>
+
+### AdminSearcher
+
+Purpose: Confirm that AdminSearchBar renders with the correct initial value and triggers the onChange handler with updated input.<br/>
+Component: AdminSearchBar<br/>
+Input: Accepts a value string and an onChange callback function to handle user input.<br/>
+Mock Behaviour: Mocks onChange using vi.fn(). Simulates controlled component behavior by manually re-rendering with updated value. Uses userEvent to simulate typing.<br/>
+Expected Output: Renders an input field pre-filled with the given value. As the user types, the onChange handler is called with the updated value on each keystroke, and the final call reflects the complete input string.<br/>
+Covers: Controlled component behavior, initial value rendering, and accurate onChange callback execution during user interaction.<br/>
+
+### EditMenuModal
+
+Purpose: Verify that EditMenuModal correctly renders initial menu items, allows adding and deleting items, and calls the save handler with updated data.<br/>
+Component: EditMenuModal<br/>
+Input: Accepts isOpen to control visibility, an initialItems array representing menu items, and callback props onClose and onSave.<br/>
+Mock Behaviour: Uses vi.fn() to mock onSave. Simulates user interactions such as clicking buttons and typing with userEvent.<br/>
+Expected Output: When opened, the modal renders the initial menu items sorted by category. Adding an item increases the total inputs reflecting both desktop and mobile layouts. Deleting removes the item inputs from the DOM. Saving calls onSave with the updated list when the form is valid.<br/>
+Covers: Rendering sorted items, adding and deleting menu items, and triggering save with updated data.<br/>
+
+### EditRestaurantModal
+
+Purpose: Verify that EditRestaurantModal renders with initial data, allows editing of form fields, and calls onSave with updated data when submitted.<br/>
+Component: EditRestaurantModal<br/>
+Input: Receives isOpen to control visibility, initial containing restaurant data, and callbacks onClose and onSave.<br/>
+Mock Behaviour: Uses vi.fn() to mock the onSave callback. Simulates user input and button click with userEvent.<br/>
+Expected Output: The form fields are pre-populated with initial data. Users can edit input fields and the changes are reflected. When the save button is clicked, onSave is called once with the updated restaurant information.<br/>
+Covers: Form data initialization, user input handling, and form submission with updated values.<br/>
+
+### RestaurantCard
+
+Purpose: Verify that RestaurantCard displays restaurant details correctly and triggers the onOpen callback with the correct ID when clicked.<br/>
+Component: RestaurantCard<br/>
+Input: Receives a restaurant object with details and an onOpen callback.<br/>
+Mock Behaviour: Uses vi.fn() to mock onOpen. Simulates user click with userEvent.<br/>
+Expected Output: Renders the restaurant’s name, location, and description. Clicking the card calls onOpen once with the restaurant’s ID.<br/>
+Covers: Proper rendering of restaurant data and handling of click events.<br/>
+
+### AdminDashboard
+
+Purpose: Verify that the AdminDashboard component correctly handles loading, data fetching, error states, and modal interactions.<br/>
+Component: AdminDashboard<br/>
+Input: Uses mocked API calls to fetchRestaurants and mocks authentication context with useAuth.<br/>
+Mock Behaviour: The API fetchRestaurants is mocked to resolve with data, reject with an error, or return an empty list. The auth context is mocked to provide a fake session token.<br/>
+Expected Output: Initially displays a loading message, then renders fetched restaurants on success. Shows an empty state with an add restaurant button on failure. Clicking the add restaurant button opens the modal dialog.<br/>
+Covers: Loading state display, successful and failed API fetches, and modal open interaction.<br/>

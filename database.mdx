@@ -96,7 +96,7 @@ create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text not null default '',
-  location geometry not null,
+  location text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   image_url text
@@ -107,12 +107,12 @@ create table if not exists public.restaurants (
 - `id`: Unique identifier (UUID, auto-generated)
 - `name`: Restaurant name (required)
 - `description`: Restaurant description
-- `location`: Restaurant location (PostGIS geometry)
+- `location`: Restaurant location (text description)
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
 - `image_url`: Restaurant image URL (nullable)
 
-**Design Rationale**: PostGIS geometry type enables spatial queries for location-based features like "find restaurants near me" and delivery zone calculations.
+**Design Rationale**: Text-based location field provides flexibility for various address formats while maintaining simplicity for basic location storage.
 
 ### Menus Table
 
@@ -252,14 +252,15 @@ create table if not exists public.orders (
   user_id uuid not null references public.users(id) on delete cascade,
   driver_id uuid references public.users(id) on delete set null,
   restaurant_id uuid not null references public.restaurants(id) on delete cascade,
-  address text not null,
   note text,
   status order_status not null default 'pending',
   subtotal numeric(10,2) not null default 0,
   delivery_fee numeric(10,2) not null default 0,
   total_price numeric(10,2) not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  lat float not null,
+  lon float not null
 );
 ```
 
@@ -268,7 +269,6 @@ create table if not exists public.orders (
 - `user_id`: Foreign key to users table (customer)
 - `driver_id`: Foreign key to users table (driver, nullable)
 - `restaurant_id`: Foreign key to restaurants table
-- `address`: Delivery address (required)
 - `note`: Special delivery instructions (nullable)
 - `status`: Order status (pending, accepted, preparing, delivering, completed, canceled)
 - `subtotal`: Order subtotal before delivery fee
@@ -276,6 +276,8 @@ create table if not exists public.orders (
 - `total_price`: Total order amount including delivery fee
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
+- `lat`: Delivery location latitude (required)
+- `lon`: Delivery location longitude (required)
 
 ### Order Items Table
 
@@ -305,6 +307,31 @@ create table if not exists public.order_items (
 **Note:** The `menu_item_name` and `menu_item_price` fields are denormalized to preserve order history even if menu items are later modified or deleted.
 
 **Design Rationale**: Denormalization ensures order history remains accurate and complete even when restaurants update their menus, prices, or remove items. This is critical for customer service, accounting, and legal compliance.
+
+### Messages Table
+
+Handles communication between users regarding orders:
+
+```sql
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  sender_id uuid not null references public.users(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `order_id`: Foreign key to orders table
+- `sender_id`: Foreign key to users table (who sent the message)
+- `content`: Message content (required)
+- `created_at`: Message creation timestamp
+- `read_at`: Timestamp when message was read (nullable)
+
+**Design Rationale**: Enables real-time communication between customers, drivers, and restaurant staff regarding specific orders, improving customer service and order management.
 
 ### Campuses Table
 
@@ -423,6 +450,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_orders_updated_at on public.orders;
 create trigger trg_orders_updated_at before update on public.orders
 for each row execute function public.set_updated_at();
+
+-- Messages trigger
+drop trigger if exists trg_messages_updated_at on public.messages;
+create trigger trg_messages_updated_at before update on public.messages
+for each row execute function public.set_updated_at();
 ```
 
 ## Database Indexes
@@ -436,7 +468,6 @@ create index if not exists idx_users_role on public.users (role);
 
 -- Restaurant indexes
 create index if not exists idx_restaurants_name on public.restaurants (name);
-create index if not exists idx_restaurants_location on public.restaurants using gist (location);
 
 -- Menu item indexes
 create index if not exists idx_menu_items_name on public.menu_items (name);
@@ -457,8 +488,14 @@ create index if not exists idx_orders_driver_id on public.orders (driver_id);
 create index if not exists idx_orders_restaurant_id on public.orders (restaurant_id);
 create index if not exists idx_orders_status on public.orders (status);
 create index if not exists idx_orders_created_at on public.orders (created_at);
+create index if not exists idx_orders_location on public.orders (lat, lon);
 create index if not exists idx_order_items_order_id on public.order_items (order_id);
 create index if not exists idx_order_items_menu_item_id on public.order_items (menu_item_id);
+
+-- Message indexes
+create index if not exists idx_messages_order_id on public.messages (order_id);
+create index if not exists idx_messages_sender_id on public.messages (sender_id);
+create index if not exists idx_messages_created_at on public.messages (created_at);
 
 -- Driver approval indexes
 create index if not exists idx_driver_approvals_is_approved on public.driver_approvals (is_approved);
@@ -471,7 +508,7 @@ create index if not exists idx_campuses_geom on public.campuses using gist (geom
 
 ### Database Schema Diagram
 
-![Database Schema](/images/schemaImageComp.svg)
+![Database Schema](/images/schemaImageComp.png)
 
 ### Relationship Diagram
 
@@ -481,6 +518,7 @@ Users (1) ←→ (Many) Carts
 Users (1) ←→ (Many) Cart Items (Direct)
 Users (1) ←→ (Many) Orders (as customer)
 Users (1) ←→ (Many) Orders (as driver)
+Users (1) ←→ (Many) Messages (as sender)
 
 Restaurants (1) ←→ (1) Menus (1) ←→ (Many) Menu Items
 Restaurants (1) ←→ (Many) Carts
@@ -490,6 +528,7 @@ Carts (1) ←→ (Many) Carts Items
 Carts Items (Many) ←→ (1) Menu Items
 
 Orders (1) ←→ (Many) Order Items
+Orders (1) ←→ (Many) Messages
 Order Items (Many) ←→ (1) Menu Items
 
 Campuses (1) ←→ (Many) Restaurants (spatial relationship)
@@ -519,53 +558,61 @@ Campuses (1) ←→ (Many) Restaurants (spatial relationship)
    - Each user can deliver multiple orders
    - Driver reference is set to null when user is deleted (set null)
 
+6. **User → Messages (as Sender)**: One-to-many relationship
+   - Each user can send multiple messages
+   - Messages are automatically deleted when user is deleted (cascade)
+
 #### Restaurant Relationships
 
-6. **Restaurant → Menu**: One-to-one relationship
+7. **Restaurant → Menu**: One-to-one relationship
    - Each restaurant has exactly one menu
    - Menu is automatically deleted when restaurant is deleted (cascade)
 
-7. **Restaurant → Carts**: One-to-many relationship
+8. **Restaurant → Carts**: One-to-many relationship
    - Each restaurant can have multiple user carts
    - Carts are automatically deleted when restaurant is deleted (cascade)
 
-8. **Restaurant → Orders**: One-to-many relationship
+9. **Restaurant → Orders**: One-to-many relationship
    - Each restaurant can receive multiple orders
    - Orders are automatically deleted when restaurant is deleted (cascade)
 
 #### Menu Relationships
 
-9. **Menu → Menu Items**: One-to-many relationship
-   - Each menu can have multiple menu items
-   - Menu items are automatically deleted when menu is deleted (cascade)
+10. **Menu → Menu Items**: One-to-many relationship
+    - Each menu can have multiple menu items
+    - Menu items are automatically deleted when menu is deleted (cascade)
 
 #### Cart Relationships
 
-10. **Cart → Carts Items**: One-to-many relationship
+11. **Cart → Carts Items**: One-to-many relationship
     - Each cart can contain multiple items
     - Cart items are automatically deleted when cart is deleted (cascade)
 
-11. **Carts Items → Menu Items**: Many-to-one relationship
+12. **Carts Items → Menu Items**: Many-to-one relationship
     - Each cart item references one menu item
     - Cart items are automatically deleted when menu item is deleted (cascade)
 
-12. **Cart Items (Direct) → Menu Items**: Many-to-one relationship
+13. **Cart Items (Direct) → Menu Items**: Many-to-one relationship
     - Each direct cart item references one menu item
     - Cart items are automatically deleted when menu item is deleted (cascade)
 
 #### Order Relationships
 
-13. **Order → Order Items**: One-to-many relationship
+14. **Order → Order Items**: One-to-many relationship
     - Each order can contain multiple items
     - Order items are automatically deleted when order is deleted (cascade)
 
-14. **Order Items → Menu Items**: Many-to-one relationship
+15. **Order → Messages**: One-to-many relationship
+    - Each order can have multiple messages
+    - Messages are automatically deleted when order is deleted (cascade)
+
+16. **Order Items → Menu Items**: Many-to-one relationship
     - Each order item references one menu item
     - Order items are automatically deleted when menu item is deleted (cascade)
 
 #### Spatial Relationships
 
-15. **Campus → Restaurants**: One-to-many relationship (spatial)
+17. **Campus → Restaurants**: One-to-many relationship (spatial)
     - Each campus can contain multiple restaurants within its geographic boundary
     - Spatial queries determine restaurant-campus relationships
 
@@ -622,7 +669,7 @@ When using the carts and carts_items tables:
 #### Creating an Order
 When a customer places an order:
 1. Order record is created with customer and restaurant references
-2. Delivery address and special instructions are stored
+2. Delivery coordinates (lat/lon) and special instructions are stored
 3. Status is set to 'pending'
 4. Pricing is calculated (subtotal, delivery fee, total)
 5. Order items are created with denormalized menu item data
@@ -642,6 +689,21 @@ When assigning a driver to an order:
 2. Driver reference is set in orders table
 3. Order status can be updated to 'delivering'
 
+### Message Operations
+
+#### Sending Messages
+When users send messages regarding orders:
+1. Message record is created with order and sender references
+2. Content is stored as text
+3. Created timestamp is automatically set
+4. Read timestamp is initially null
+
+#### Reading Messages
+When messages are read:
+1. Read timestamp is updated to current time
+2. Message status can be tracked for notification purposes
+3. Messages are ordered by creation time for chronological display
+
 ### Spatial Operations
 
 #### Campus Management
@@ -650,14 +712,20 @@ When managing delivery zones:
 2. Restaurants can be spatially queried to determine which campus they belong to
 3. Delivery zones can be used for order routing and driver assignment
 
+#### Order Location Management
+When managing order locations:
+1. Order delivery coordinates (lat/lon) are stored as float values
+2. Distance calculations can be performed between restaurants and delivery locations
+3. Driver assignment can be optimized based on proximity to order locations
+
 ### Deleting Operations
 
 **Cascade Deletion Behavior:**
-- Deleting a user → Deletes driver approval, carts, cart items, and orders
+- Deleting a user → Deletes driver approval, carts, cart items, orders, and messages
 - Deleting a restaurant → Deletes menu, menu items, carts, and orders
 - Deleting a menu → Deletes all associated menu items
 - Deleting a menu item → Deletes cart items and order items (with cascade)
-- Deleting an order → Deletes all associated order items
+- Deleting an order → Deletes all associated order items and messages
 - Deleting a cart → Deletes all associated cart items
 
 **Set Null Behavior:**
@@ -694,8 +762,9 @@ When managing delivery zones:
 - Consider partitioning for large datasets (orders, order_items)
 
 ### Spatial Data Management
-- Use PostGIS geometry types for location data
-- Implement spatial indexes (GIST) for geographic queries
+- Use PostGIS geometry types for campus boundaries and spatial reference systems
+- Store order delivery coordinates as float values for distance calculations
+- Implement spatial indexes (GIST) for campus geometry queries
 - Validate spatial data using PostGIS functions
 - Consider coordinate system consistency across all spatial data
 
@@ -710,6 +779,14 @@ When managing delivery zones:
 - Implement proper order status workflow
 - Use soft deletes for orders to maintain audit trail
 - Consider implementing order versioning for complex modifications
+- Store delivery coordinates as lat/lon for precise location tracking
+
+### Message Management
+- Implement real-time message delivery for order communication
+- Track message read status for notification purposes
+- Order messages chronologically for clear conversation flow
+- Consider implementing message threading for complex discussions
+- Implement proper message retention policies for data management
 
 ### User Management
 - Integrate with external authentication system (auth.users)

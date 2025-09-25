@@ -36,7 +36,7 @@ Stakeholders: Driver, Customer, Restaurants, Developers
             <td style={{"border": "1px solid"}} width = "120px" height = "30px">Cybersecurity and Data Management</td>
             <td style={{"border": "1px solid"}} width = "120px" height = "30px">Execution</td>
             <td style={{"border": "1px solid"}} width = "120px" height = "30px">Inclusive: Request their input and feedback</td>
-            <td style={{"border": "1px solid"}} width = "120px" height = "30px">Contract Reviews and Performance analytics</td>
+            <td style={{"border": "1px solid"}} width = "120px" height = "30px">Contract Reviews, Performance analytics, and Approval notifications</td>
             <td style={{"border": "1px solid"}} width = "120px" height = "30px">Weekly or as needed</td>
         </tr>
         <tr style={{"border": "1px solid"}}>
@@ -91,10 +91,10 @@ Stakeholders: Driver, Customer, Restaurants, Developers
     <tr style={{"border": "1px solid"}}>
         <td style={{"border": "1px solid"}}>Drivers</td>
         <td style={{"border": "1px solid"}}>
-            Pay issues, safety on the job, too much pressure, unclear rules
+            Pay issues, safety on the job, too much pressure, unclear rules, lack of approval notifications
         </td>
         <td style={{"border": "1px solid"}}>
-            Show clear pay info, add safety tools, be fair with goals, explain contracts well
+            Show clear pay info, add safety tools, be fair with goals, explain contracts well, implement driver approval notifications
         </td>
     </tr>
 
@@ -118,3 +118,27 @@ Stakeholders: Driver, Customer, Restaurants, Developers
         </td>
     </tr>
 </table>
+
+---
+
+## Implemented Stakeholder Requests
+
+### Driver Approval Notification Feature
+
+**Stakeholder Request**: Drivers to be notified when they are accepted by an admin.
+
+**Implementation**: 
+- Added real-time notification system by email for driver approval status changes
+- Drivers receive immediate email when their application is approved by an admin
+- Integrated with the existing `driver_approvals` table and email system
+
+**Impact**: 
+- Improved driver experience and communication
+- Reduced uncertainty about application status
+- Faster onboarding process for approved drivers
+- Enhanced transparency in the approval workflow
+
+**Technical Details**:
+- Utilizes the existing `email service` for notification delivery
+- Triggers email when `driver_approvals.is_approved` is updated to `true`
+- Notification sent to driver's email immediately upon admin approval

@@ -9,7 +9,7 @@ This document describes the database schema for the restaurant management system
 
 ## Overview
 
-The schema uses PostgreSQL with UUID primary keys and automatic timestamp management.
+The schema uses PostgreSQL with UUID primary keys, automatic timestamp management, and PostGIS extension for spatial data handling.
 
 ## Schema Design Rationale
 
@@ -29,7 +29,91 @@ The schema uses PostgreSQL with UUID primary keys and automatic timestamp manage
 
 **Cascade vs Set-Null Deletes**: Strategic use of cascade deletes for dependent data (carts, orders) while using set-null for driver references to preserve order history when drivers are removed.
 
+## PostGIS Extension
+
+### Overview
+
+The database uses the PostGIS extension, which is a massive add-on that teaches PostgreSQL how to handle spatial data including geometry, geography, and raster data types.
+
+### PostGIS Installation
+
+When you run:
+```sql
+create extension if not exists postgis;
+```
+
+PostgreSQL installs the PostGIS extension, which creates and maintains several system catalog tables inside your database.
+
+### PostGIS System Tables
+
+PostGIS creates the following system catalog tables that are used internally:
+
+#### geometry_columns
+- **Purpose**: Metadata about all geometry columns in your database
+- **Usage**: PostGIS uses this to understand your geometry columns and their properties
+- **Content**: Information about geometry column names, types, dimensions, and spatial reference systems
+
+#### geography_columns  
+- **Purpose**: Metadata about all geography columns in your database
+- **Usage**: Similar to geometry_columns but for geography data types
+- **Content**: Information about geography column properties and coordinate systems
+
+#### spatial_ref_sys
+- **Purpose**: Definitions of all spatial reference systems (SRIDs)
+- **Usage**: Contains coordinate system definitions like EPSG:4326 (WGS84 lat/lon)
+- **Content**: Authority names, SRID codes, and coordinate system transformations
+
+#### raster_columns & raster_overviews
+- **Purpose**: Metadata for raster data if raster support is enabled
+- **Usage**: Information about raster data storage and processing
+- **Content**: Raster column properties and overview pyramid information
+
+### What PostGIS Does Under the Hood
+
+PostGIS adds the following capabilities to PostgreSQL:
+
+1. **New Data Types**:
+   - `geometry` - For 2D/3D geometric data
+   - `geography` - For geodetic (spherical) data
+   - `raster` - For raster/imagery data
+
+2. **New Functions**:
+   - `ST_Distance()` - Calculate distances between geometries
+   - `ST_Contains()` - Check if one geometry contains another
+   - `ST_Transform()` - Transform between coordinate systems
+   - Hundreds of other spatial functions
+
+3. **System Catalog Tables**:
+   - `geometry_columns` - Geometry column metadata
+   - `geography_columns` - Geography column metadata  
+   - `spatial_ref_sys` - Spatial reference system definitions
+   - Raster tables (if raster support is enabled)
+
+### Important Notes
+
+- **Not Duplicates**: These system tables are NOT duplicates of your application tables like `campuses`
+- **Global Metadata**: They are global metadata that PostGIS uses to understand your spatial data
+- **Automatic Management**: PostGIS automatically manages these tables when you create spatial columns
+- **Required for Spatial Operations**: These tables are essential for PostGIS to function properly
+
 ## Table Structure
+
+### PostGIS Usage Summary
+
+**Tables Using PostGIS:**
+- **`campuses`**: Uses PostGIS `geometry` data type for campus boundaries
+- **`spatial_ref_sys`**: PostGIS system table (not an application table)
+
+**Tables NOT Using PostGIS:**
+- **`restaurants`**: Uses text for location descriptions
+- **`orders`**: Uses float coordinates (lat/lon) for delivery locations
+- **All other tables**: Use standard PostgreSQL data types
+
+**PostGIS System Tables (Automatically Created):**
+- `geometry_columns`: Metadata about geometry columns
+- `geography_columns`: Metadata about geography columns
+- `spatial_ref_sys`: Spatial reference system definitions
+- `raster_columns`, `raster_overviews`: Raster data metadata (if enabled)
 
 ### Users Table
 
@@ -96,7 +180,7 @@ create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text not null default '',
-  location geometry not null,
+  location text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   image_url text
@@ -107,12 +191,12 @@ create table if not exists public.restaurants (
 - `id`: Unique identifier (UUID, auto-generated)
 - `name`: Restaurant name (required)
 - `description`: Restaurant description
-- `location`: Restaurant location (PostGIS geometry)
+- `location`: Restaurant location (text description)
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
 - `image_url`: Restaurant image URL (nullable)
 
-**Design Rationale**: PostGIS geometry type enables spatial queries for location-based features like "find restaurants near me" and delivery zone calculations.
+**Design Rationale**: Text-based location field provides flexibility for various address formats while maintaining simplicity for basic location storage. Note: This table does NOT use PostGIS geometry types - it uses simple text for location descriptions. PostGIS geometry is used in the `campuses` table for spatial operations.
 
 ### Menus Table
 
@@ -252,14 +336,15 @@ create table if not exists public.orders (
   user_id uuid not null references public.users(id) on delete cascade,
   driver_id uuid references public.users(id) on delete set null,
   restaurant_id uuid not null references public.restaurants(id) on delete cascade,
-  address text not null,
   note text,
   status order_status not null default 'pending',
   subtotal numeric(10,2) not null default 0,
   delivery_fee numeric(10,2) not null default 0,
   total_price numeric(10,2) not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  lat float not null,
+  lon float not null
 );
 ```
 
@@ -268,7 +353,6 @@ create table if not exists public.orders (
 - `user_id`: Foreign key to users table (customer)
 - `driver_id`: Foreign key to users table (driver, nullable)
 - `restaurant_id`: Foreign key to restaurants table
-- `address`: Delivery address (required)
 - `note`: Special delivery instructions (nullable)
 - `status`: Order status (pending, accepted, preparing, delivering, completed, canceled)
 - `subtotal`: Order subtotal before delivery fee
@@ -276,6 +360,10 @@ create table if not exists public.orders (
 - `total_price`: Total order amount including delivery fee
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
+- `lat`: Delivery location latitude (required, float)
+- `lon`: Delivery location longitude (required, float)
+
+**Design Rationale**: This table uses simple float coordinates (lat/lon) for delivery locations rather than PostGIS geometry types. This approach provides precise coordinate storage for distance calculations while maintaining simplicity. PostGIS geometry types are used in the `campuses` table for complex spatial operations and boundary management.
 
 ### Order Items Table
 
@@ -306,9 +394,34 @@ create table if not exists public.order_items (
 
 **Design Rationale**: Denormalization ensures order history remains accurate and complete even when restaurants update their menus, prices, or remove items. This is critical for customer service, accounting, and legal compliance.
 
+### Messages Table
+
+Handles communication between users regarding orders:
+
+```sql
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  sender_id uuid not null references public.users(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now(),
+  read_at timestamptz
+);
+```
+
+**Fields:**
+- `id`: Unique identifier (UUID, auto-generated)
+- `order_id`: Foreign key to orders table
+- `sender_id`: Foreign key to users table (who sent the message)
+- `content`: Message content (required)
+- `created_at`: Message creation timestamp
+- `read_at`: Timestamp when message was read (nullable)
+
+**Design Rationale**: Enables real-time communication between customers, drivers, and restaurant staff regarding specific orders, improving customer service and order management.
+
 ### Campuses Table
 
-Stores campus information for delivery zones:
+Stores campus information for delivery zones using PostGIS geometry:
 
 ```sql
 create table if not exists public.campuses (
@@ -322,14 +435,26 @@ create table if not exists public.campuses (
 **Fields:**
 - `id`: Unique identifier (integer)
 - `name`: Campus name (required)
-- `geom`: Campus geometry (PostGIS geometry)
+- `geom`: Campus geometry (PostGIS geometry type)
 - `created_at`: Creation timestamp
 
-**Design Rationale**: Campus-based delivery zones enable efficient order routing, driver assignment, and delivery fee calculations based on geographic boundaries.
+**PostGIS Integration:**
+- Uses PostGIS `geometry` data type for storing campus boundaries (this is the ONLY table using PostGIS geometry)
+- Automatically registered in PostGIS `geometry_columns` system table when created
+- Enables spatial queries like "find restaurants within campus boundaries"
+- Supports spatial indexing with GIST indexes for performance
+- **Important**: This is the only application table that uses PostGIS geometry - other tables use text or float coordinates
+
+**Design Rationale**: Campus-based delivery zones enable efficient order routing, driver assignment, and delivery fee calculations based on geographic boundaries. The PostGIS geometry type allows for complex polygon shapes representing campus areas and enables spatial operations for determining which restaurants and delivery locations fall within each campus zone.
+
+**Spatial Operations:**
+- `ST_Contains(campus.geom, restaurant.location)` - Check if restaurant is within campus
+- `ST_Intersects(campus.geom, delivery_point)` - Check if delivery point is within campus
+- `ST_Area(campus.geom)` - Calculate campus area for delivery zone management
 
 ### Spatial Reference Systems Table
 
-Standard PostGIS table for spatial reference systems:
+Standard PostGIS system table for spatial reference systems:
 
 ```sql
 create table if not exists public.spatial_ref_sys (
@@ -343,10 +468,31 @@ create table if not exists public.spatial_ref_sys (
 
 **Fields:**
 - `srid`: Spatial reference system identifier (primary key)
-- `auth_name`: Authority name
+- `auth_name`: Authority name (e.g., 'EPSG', 'ESRI')
 - `auth_srid`: Authority's spatial reference system identifier
-- `srtext`: Well-known text representation
-- `proj4text`: PROJ.4 string representation
+- `srtext`: Well-known text (WKT) representation of the coordinate system
+- `proj4text`: PROJ.4 string representation for coordinate transformations
+
+**Purpose:**
+This is a PostGIS system table that contains definitions of all spatial reference systems (coordinate systems) used in the database. It's automatically created and populated when PostGIS is installed.
+
+**Common SRIDs:**
+- **4326**: WGS84 (World Geodetic System 1984) - Standard GPS coordinates (lat/lon)
+- **3857**: Web Mercator - Used by web mapping services like Google Maps
+- **4269**: NAD83 - North American Datum 1983
+- **2154**: RGF93 / Lambert-93 - French coordinate system
+
+**Usage:**
+- Referenced by geometry columns to define their coordinate system
+- Used by PostGIS functions like `ST_Transform()` for coordinate system conversions
+- Essential for accurate spatial calculations and map projections
+- Automatically managed by PostGIS - do not modify manually
+
+**Important Notes:**
+- This is a PostGIS system table, not an application table
+- Contains global metadata for all spatial reference systems
+- Required for PostGIS to function properly
+- Should not be modified directly by application code
 
 ## Custom Types
 
@@ -423,11 +569,21 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_orders_updated_at on public.orders;
 create trigger trg_orders_updated_at before update on public.orders
 for each row execute function public.set_updated_at();
+
+-- Messages trigger
+drop trigger if exists trg_messages_updated_at on public.messages;
+create trigger trg_messages_updated_at before update on public.messages
+for each row execute function public.set_updated_at();
 ```
 
 ## Database Indexes
 
 Performance optimization indexes for common queries:
+
+**Index Types Used:**
+- **Regular B-tree indexes**: For standard columns (email, status, timestamps, etc.)
+- **Composite indexes**: For multi-column queries (lat, lon coordinates)
+- **PostGIS GIST indexes**: For spatial geometry columns (campuses.geom only)
 
 ```sql
 -- User indexes
@@ -436,7 +592,6 @@ create index if not exists idx_users_role on public.users (role);
 
 -- Restaurant indexes
 create index if not exists idx_restaurants_name on public.restaurants (name);
-create index if not exists idx_restaurants_location on public.restaurants using gist (location);
 
 -- Menu item indexes
 create index if not exists idx_menu_items_name on public.menu_items (name);
@@ -457,13 +612,19 @@ create index if not exists idx_orders_driver_id on public.orders (driver_id);
 create index if not exists idx_orders_restaurant_id on public.orders (restaurant_id);
 create index if not exists idx_orders_status on public.orders (status);
 create index if not exists idx_orders_created_at on public.orders (created_at);
+create index if not exists idx_orders_location on public.orders (lat, lon);
 create index if not exists idx_order_items_order_id on public.order_items (order_id);
 create index if not exists idx_order_items_menu_item_id on public.order_items (menu_item_id);
+
+-- Message indexes
+create index if not exists idx_messages_order_id on public.messages (order_id);
+create index if not exists idx_messages_sender_id on public.messages (sender_id);
+create index if not exists idx_messages_created_at on public.messages (created_at);
 
 -- Driver approval indexes
 create index if not exists idx_driver_approvals_is_approved on public.driver_approvals (is_approved);
 
--- Campus indexes
+-- Campus indexes (PostGIS spatial indexes)
 create index if not exists idx_campuses_geom on public.campuses using gist (geom);
 ```
 
@@ -471,7 +632,7 @@ create index if not exists idx_campuses_geom on public.campuses using gist (geom
 
 ### Database Schema Diagram
 
-![Database Schema](/images/schemaImageComp.svg)
+![Database Schema](/images/schemaImageComp.png)
 
 ### Relationship Diagram
 
@@ -481,6 +642,7 @@ Users (1) ←→ (Many) Carts
 Users (1) ←→ (Many) Cart Items (Direct)
 Users (1) ←→ (Many) Orders (as customer)
 Users (1) ←→ (Many) Orders (as driver)
+Users (1) ←→ (Many) Messages (as sender)
 
 Restaurants (1) ←→ (1) Menus (1) ←→ (Many) Menu Items
 Restaurants (1) ←→ (Many) Carts
@@ -490,6 +652,7 @@ Carts (1) ←→ (Many) Carts Items
 Carts Items (Many) ←→ (1) Menu Items
 
 Orders (1) ←→ (Many) Order Items
+Orders (1) ←→ (Many) Messages
 Order Items (Many) ←→ (1) Menu Items
 
 Campuses (1) ←→ (Many) Restaurants (spatial relationship)
@@ -519,55 +682,57 @@ Campuses (1) ←→ (Many) Restaurants (spatial relationship)
    - Each user can deliver multiple orders
    - Driver reference is set to null when user is deleted (set null)
 
+6. **User → Messages (as Sender)**: One-to-many relationship
+   - Each user can send multiple messages
+   - Messages are automatically deleted when user is deleted (cascade)
+
 #### Restaurant Relationships
 
-6. **Restaurant → Menu**: One-to-one relationship
+7. **Restaurant → Menu**: One-to-one relationship
    - Each restaurant has exactly one menu
    - Menu is automatically deleted when restaurant is deleted (cascade)
 
-7. **Restaurant → Carts**: One-to-many relationship
+8. **Restaurant → Carts**: One-to-many relationship
    - Each restaurant can have multiple user carts
    - Carts are automatically deleted when restaurant is deleted (cascade)
 
-8. **Restaurant → Orders**: One-to-many relationship
+9. **Restaurant → Orders**: One-to-many relationship
    - Each restaurant can receive multiple orders
    - Orders are automatically deleted when restaurant is deleted (cascade)
 
 #### Menu Relationships
 
-9. **Menu → Menu Items**: One-to-many relationship
-   - Each menu can have multiple menu items
-   - Menu items are automatically deleted when menu is deleted (cascade)
+10. **Menu → Menu Items**: One-to-many relationship
+    - Each menu can have multiple menu items
+    - Menu items are automatically deleted when menu is deleted (cascade)
 
 #### Cart Relationships
 
-10. **Cart → Carts Items**: One-to-many relationship
+11. **Cart → Carts Items**: One-to-many relationship
     - Each cart can contain multiple items
     - Cart items are automatically deleted when cart is deleted (cascade)
 
-11. **Carts Items → Menu Items**: Many-to-one relationship
+12. **Carts Items → Menu Items**: Many-to-one relationship
     - Each cart item references one menu item
     - Cart items are automatically deleted when menu item is deleted (cascade)
 
-12. **Cart Items (Direct) → Menu Items**: Many-to-one relationship
+13. **Cart Items (Direct) → Menu Items**: Many-to-one relationship
     - Each direct cart item references one menu item
     - Cart items are automatically deleted when menu item is deleted (cascade)
 
 #### Order Relationships
 
-13. **Order → Order Items**: One-to-many relationship
+14. **Order → Order Items**: One-to-many relationship
     - Each order can contain multiple items
     - Order items are automatically deleted when order is deleted (cascade)
 
-14. **Order Items → Menu Items**: Many-to-one relationship
+15. **Order → Messages**: One-to-many relationship
+    - Each order can have multiple messages
+    - Messages are automatically deleted when order is deleted (cascade)
+
+16. **Order Items → Menu Items**: Many-to-one relationship
     - Each order item references one menu item
     - Order items are automatically deleted when menu item is deleted (cascade)
-
-#### Spatial Relationships
-
-15. **Campus → Restaurants**: One-to-many relationship (spatial)
-    - Each campus can contain multiple restaurants within its geographic boundary
-    - Spatial queries determine restaurant-campus relationships
 
 ## Data Operations
 
@@ -622,7 +787,7 @@ When using the carts and carts_items tables:
 #### Creating an Order
 When a customer places an order:
 1. Order record is created with customer and restaurant references
-2. Delivery address and special instructions are stored
+2. Delivery coordinates (lat/lon) and special instructions are stored
 3. Status is set to 'pending'
 4. Pricing is calculated (subtotal, delivery fee, total)
 5. Order items are created with denormalized menu item data
@@ -642,22 +807,53 @@ When assigning a driver to an order:
 2. Driver reference is set in orders table
 3. Order status can be updated to 'delivering'
 
+### Message Operations
+
+#### Sending Messages
+When users send messages regarding orders:
+1. Message record is created with order and sender references
+2. Content is stored as text
+3. Created timestamp is automatically set
+4. Read timestamp is initially null
+
+#### Reading Messages
+When messages are read:
+1. Read timestamp is updated to current time
+2. Message status can be tracked for notification purposes
+3. Messages are ordered by creation time for chronological display
+
 ### Spatial Operations
 
-#### Campus Management
-When managing delivery zones:
-1. Campus boundaries are defined using PostGIS geometry
-2. Restaurants can be spatially queried to determine which campus they belong to
-3. Delivery zones can be used for order routing and driver assignment
+#### PostGIS-Based Operations (Campus Management)
+When managing delivery zones using PostGIS:
+1. Campus boundaries are defined using PostGIS `geometry` data type in the `campuses` table
+2. PostGIS functions like `ST_Contains()` can determine which campus contains a given point
+3. Spatial queries can find restaurants within campus boundaries using PostGIS functions
+4. Complex polygon operations are supported for campus boundary management
+5. **Note**: Only the `campuses` table uses PostGIS geometry - other tables use different approaches
+
+#### Coordinate-Based Operations (Order & Restaurant Management)
+When managing order and restaurant locations using coordinates:
+1. **Restaurants**: Use text-based location descriptions (not PostGIS geometry)
+2. **Orders**: Use float coordinates (lat/lon) for delivery locations
+3. Distance calculations between restaurants and delivery points use standard mathematical formulas
+4. Driver assignment can be optimized based on coordinate proximity calculations
+5. **Note**: These operations do NOT use PostGIS functions - they use standard coordinate mathematics
+
+#### Hybrid Spatial Operations
+When combining PostGIS and coordinate-based data:
+1. Convert coordinates to PostGIS points for spatial queries: `ST_Point(lon, lat)`
+2. Use PostGIS functions to check if delivery points fall within campus boundaries
+3. Combine campus-based delivery zones with coordinate-based distance calculations
 
 ### Deleting Operations
 
 **Cascade Deletion Behavior:**
-- Deleting a user → Deletes driver approval, carts, cart items, and orders
+- Deleting a user → Deletes driver approval, carts, cart items, orders, and messages
 - Deleting a restaurant → Deletes menu, menu items, carts, and orders
 - Deleting a menu → Deletes all associated menu items
 - Deleting a menu item → Deletes cart items and order items (with cascade)
-- Deleting an order → Deletes all associated order items
+- Deleting an order → Deletes all associated order items and messages
 - Deleting a cart → Deletes all associated cart items
 
 **Set Null Behavior:**
@@ -694,10 +890,19 @@ When managing delivery zones:
 - Consider partitioning for large datasets (orders, order_items)
 
 ### Spatial Data Management
-- Use PostGIS geometry types for location data
-- Implement spatial indexes (GIST) for geographic queries
+- Use PostGIS geometry types for campus boundaries and spatial reference systems
+- Store order delivery coordinates as float values for distance calculations
+- Implement spatial indexes (GIST) for campus geometry queries
 - Validate spatial data using PostGIS functions
 - Consider coordinate system consistency across all spatial data
+
+### PostGIS System Table Management
+- **Never modify PostGIS system tables directly** (`geometry_columns`, `geography_columns`, `spatial_ref_sys`)
+- **Let PostGIS manage system tables automatically** when creating/dropping spatial columns
+- **Use proper SRID specifications** when creating geometry columns (e.g., `geometry(POINT, 4326)`)
+- **Monitor system table integrity** using PostGIS functions like `Populate_Geometry_Columns()`
+- **Backup system tables** as part of database backup procedures
+- **Understand the difference** between application tables (like `campuses`) and PostGIS system tables
 
 ### Cart Management
 - Choose between direct (cart_items) or normalized (carts + carts_items) approach based on requirements
@@ -710,6 +915,14 @@ When managing delivery zones:
 - Implement proper order status workflow
 - Use soft deletes for orders to maintain audit trail
 - Consider implementing order versioning for complex modifications
+- Store delivery coordinates as lat/lon for precise location tracking
+
+### Message Management
+- Implement real-time message delivery for order communication
+- Track message read status for notification purposes
+- Order messages chronologically for clear conversation flow
+- Consider implementing message threading for complex discussions
+- Implement proper message retention policies for data management
 
 ### User Management
 - Integrate with external authentication system (auth.users)
@@ -729,3 +942,47 @@ When managing delivery zones:
 - Regular maintenance of spatial indexes
 - Implement proper backup strategies for spatial data
 - Monitor cascade delete performance for large datasets
+
+### PostGIS Troubleshooting
+
+#### Common Issues and Solutions
+
+**"Extra Tables" Appearing in Database:**
+- These are PostGIS system tables (`geometry_columns`, `geography_columns`, `spatial_ref_sys`, etc.)
+- They are **NOT duplicates** of your application tables
+- They are **required** for PostGIS to function properly
+- **Do not delete** these tables as they contain essential metadata
+
+**Geometry Column Not Recognized:**
+- Ensure PostGIS extension is properly installed: `CREATE EXTENSION IF NOT EXISTS postgis;`
+- Use `Populate_Geometry_Columns()` to register existing geometry columns
+- Check that geometry columns have proper SRID specifications
+
+**Spatial Queries Not Working:**
+- Verify PostGIS functions are available: `SELECT PostGIS_Version();`
+- Check that spatial indexes (GIST) are created on geometry columns
+- Ensure coordinate systems are consistent across related tables
+
+**Performance Issues with Spatial Data:**
+- Create GIST indexes on geometry columns: `CREATE INDEX idx_geom ON table USING GIST (geom);`
+- Use spatial bounding box queries when possible
+- Consider spatial partitioning for large datasets
+
+#### PostGIS System Table Maintenance
+
+**Checking System Table Integrity:**
+```sql
+-- Check geometry columns registration
+SELECT * FROM geometry_columns;
+
+-- Check spatial reference systems
+SELECT srid, auth_name, auth_srid FROM spatial_ref_sys WHERE srid = 4326;
+
+-- Verify PostGIS installation
+SELECT PostGIS_Version();
+```
+
+**Backup Considerations:**
+- Always include PostGIS system tables in database backups
+- System tables are small but critical for spatial functionality
+- Test spatial functionality after database restores

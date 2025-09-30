@@ -4,31 +4,36 @@ title: "Testing Documentation"
 
 # How to run tests locally
 
-Frontend: Simply run npm test
+Frontend: run ```npm test``` <br/>
+Should you want to run a specific test run ```np test <test-name>```
 
-Backend: Simply run pytest
+Backend: run ```pytest``` <br/>
+Should you want to run a specific test run ```pytest <test-name>```
 
 # Testing Libraries used
 
-Vitest
+Vitest <br/>
 Purpose: Testing Framework
 
-@testing-library/react
+@testing-library/react <br/>
 Purpose: Render/query React components
 
-@testing-library/user-event
+@testing-library/user-event <br/>
 Purpose: Simulate user interactions
 
-pytest
+react-router-dom <br/>
+Purpose: Provides routing context for components that use navigation
+
+pytest <br/>
 Purpose: Testing Framework
 
-unittest.mock.AsyncMock
+unittest.mock.AsyncMock <br/>
 Purpose: Mocking async functions
 
-monkeypatch
+monkeypatch <br/>
 Purpose: Temporarily overriden attributes/dependencies
 
-client
+client <br/>
 Purpose: Simulate HTTP requests
 
 # How to add new tests
@@ -47,7 +52,7 @@ Purpose: Simulate HTTP requests
 2. Mock dependencies
 3. Make request using client
 4. Assert response status and body
-5. Check that mock was awaited\
+5. Check that mock was awaited
 
 # Tests not implemented
 

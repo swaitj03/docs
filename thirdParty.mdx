@@ -21,6 +21,24 @@ title: "Third Party Documentation"
 - **Jest**: Selected for frontend testing because our development team has extensive experience with Jest, allowing us to implement comprehensive testing quickly and effectively.
 - **Pytest**: Chosen for backend testing due to its simplicity and ease of learning. The straightforward syntax and powerful features make it accessible for our team to write and maintain robust test suites for our API endpoints.
 
+## UI Notifications
+
+**Technology:** `react-hot-toast` (or similar toast library)  
+**Purpose:** Provides user feedback for common actions such as successful logins, order completion, and network or API errors.
+
+**Example Usage:**
+```typescript
+import { toast } from "react-hot-toast";
+
+toast.success("Order completed successfully!");
+toast.error("Failed to fetch data. Please try again.");
+```
+
+**Rationale:**  
+Using non-blocking toast notifications helps improve user experience by immediately confirming actions or alerting users to issues without interrupting their workflow.  
+It replaces intrusive modal popups and keeps the interface smooth and responsive.
+
+
 ## Backend Framework - FastAPI
 
 **Technology**: FastAPI  
@@ -118,7 +136,7 @@ navigator.geolocation.getCurrentPosition(successCallback, errorCallback, {
 ```
 
 
-### OpenStreetMap Embed (Map Display)
+### OpenStreetMap Embed (Map Display when receiving map input)
 
 - **Purpose**: Displays a map centered on the user’s location.  
 - **Usage**:
@@ -135,6 +153,156 @@ navigator.geolocation.getCurrentPosition(successCallback, errorCallback, {
 
 - **Authentication**: None (public service).  
 - **Response**: Visual map embed, no JSON output
+
+### Leaflet (Interactive Map Display when displaying map)
+
+**Technology:** `react-leaflet` with the Leaflet JS library  
+**Purpose:** Displays an interactive map showing order locations.  
+Unlike the static OpenStreetMap embed, Leaflet allows real-time updates of map markers, zoom, and tooltips directly within the React UI.
+
+**Implementation Example:**
+```tsx
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from "react-leaflet";
+import L from "leaflet";
+
+const DefaultIcon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [30, 50],
+  iconAnchor: [15, 50],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+<MapContainer center={[lat, lon]} zoom={16} scrollWheelZoom={false} style={{ height: "200px" }}>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  <Marker position={[lat, lon]}>
+    <Popup>📍 {note || "Order location"}</Popup>
+  </Marker>
+  <ZoomControl position="bottomright" />
+</MapContainer>
+```
+
+**Rationale:**  
+Provides dynamic, zoomable map interaction for drivers and buyers.   
+Leaflet is open-source, lightweight, and doesn’t require an API key, making it a reliable, privacy-friendly map rendering solution.
+
+---
+
+
+### Realtime Features (Supabase Realtime)
+
+**Technology:** Supabase Realtime (WebSocket-based database event streaming)  
+**Purpose:** Keeps order and chat data synchronized instantly between multiple drivers and buyers without requiring page reloads.
+
+**Usage Examples:**
+
+- **Driver Orders Management:**  
+  - Supabase Realtime ensures that order availability stays consistent across all drivers:  
+  - When a driver **accepts** an order, it is immediately removed from the **Available Orders** list for all other drivers through a realtime broadcast. This prevents multiple drivers from accepting the same order and keeps all screens synchronized in real time. 
+- **Buyers Orders Management:** 
+  - On the buyers side when a driver **accepts** an order, the cancel order button disappears and a chat button appears - this prevents the buyer from cancelling the order and the chat button enables the buyer and driver to begin their chat.  
+  - Once the driver marks the order as **completed**, it appears under **Previous Orders** for buyers.  
+  
+- **Chat System (Buyer ↔ Driver):**  
+  - Supabase Realtime is also used for messaging between buyers and drivers.  
+  - Messages are delivered instantly, and each order chat shows an **unread message counter** that updates live.  
+  - When a new message is received, a **toast notification** pops up (e.g., “You received a new message from order #1234”) to alert the recipient even if the chat window is not open.
+
+- **Toast Notifications:**  
+  - Connected to the realtime message events.  
+  - Triggered whenever a new chat message arrives to alert the user immediately, similar to mobile messaging apps.
+
+**Implementation Example:**
+```typescript
+const channel = supabase
+  .channel("orders-realtime")
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "orders",
+    },
+    (payload) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === payload.new.id ? payload.new : o))
+      );
+    }
+  )
+  .subscribe();
+```
+
+**Rationale:**  
+Supabase Realtime uses WebSockets to detect and push changes in the database instantly to all connected users.  
+This ensures that:  
+- Orders are removed immediately from other drivers’ “Available Orders” lists as soon as one driver accepts them.  
+- Each driver’s order screens always reflect the current system state.  
+- Chat messages and unread counters update live with toast pop-ups for new messages.  
+
+This combination provides a fast, event-driven user experience where drivers, buyers, and messages all stay synchronized across the system.
+
+## Geolocation and Geofencing
+
+**Technologies Used:**
+- **HTML5 Geolocation API** – obtains user coordinates.  
+- **OpenStreetMap / geojson.io** – defines polygon boundaries for the delivery area.  
+- **PostGIS (in Supabase)** – performs spatial “point-in-polygon” checks.  
+
+**Purpose:**  
+Restricts order placements and deliveries to within the valid university campus boundary.
+
+**Process:**
+
+1. **Define the delivery zone**  
+   Use OpenStreetMap or [geojson.io](https://geojson.io) to draw the campus boundary and export coordinates.  
+   Example:
+   ```json
+   [
+     [28.03012, -26.19075],
+     [28.03156, -26.19102],
+     [28.03290, -26.19040],
+     [28.03012, -26.19075]
+   ]
+   ```
+
+2. **Store the polygon in the database**  
+   ```sql
+   INSERT INTO campus_zones (name, area)
+   VALUES ('Wits Main Campus',
+     ST_GeomFromText(
+       'POLYGON((28.03012 -26.19075, 28.03156 -26.19102, 28.03290 -26.19040, 28.03012 -26.19075))',
+       4326
+     )
+   );
+   ```
+
+3. **Capture user coordinates on the frontend**  
+   ```javascript
+   navigator.geolocation.getCurrentPosition(
+     (pos) => sendToBackend(pos.coords.latitude, pos.coords.longitude),
+     (err) => console.error(err),
+     { enableHighAccuracy: true }
+   );
+   ```
+
+4. **Validate the coordinates on the backend**  
+   ```sql
+   SELECT ST_Contains(area, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
+   FROM campus_zones
+   WHERE name = 'Wits Main Campus';
+   ```
+
+5. **If outside campus**, the backend responds with:
+   ```json
+   { "allowed": false, "reason": "Outside campus" }
+   ```
+
+**Rationale:**  
+Combining browser-based geolocation with backend spatial validation ensures all deliveries occur within the allowed area.  
+It provides a robust geofencing mechanism that enforces business rules reliably.
+
+---
+
 
 
 # exposed public API endpoints

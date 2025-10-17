@@ -51,12 +51,13 @@ This document defines the rules, guidelines, and best practices for writing, tes
 
   ```bash
   uvx black backend
+  ```
 
 ### Error Handling
 
 - Raise `HTTPException` with proper status codes (`403`, `404`, `400`) for validation and business logic errors.  
 - Use meaningful `detail` messages (`"Admin access required"`, `"Restaurant not found"`).  
-- Default return shape for success: `{"ok": True}` for deletes.
+- Default return shape for success: `\{"ok": True\}` for deletes.
 
 
 ---
@@ -75,23 +76,111 @@ This document defines the rules, guidelines, and best practices for writing, tes
 
 
 ### Unit Testing
-- [ ] Placeholder: Define frameworks/tools used and rules for writing unit tests.
+
+**Frontend (React/Vitest)**
+- **Framework**: Vitest with @testing-library/react and @testing-library/user-event
+- **Command**: Run `npm test` from the frontend directory
+- **Structure**: 
+  1. Import required testing utilities and components
+  2. Render the component with appropriate props
+  3. Query for elements using accessible queries (getByRole, getByLabelText, etc.)
+  4. Simulate user interactions using userEvent
+  5. Assert expected behavior or rendered output
+- **Best Practices**:
+  - Test user behavior, not implementation details
+  - Use accessible queries that mirror how users interact with your app
+  - Mock external dependencies (API calls, context providers)
+  - Ensure all interactive elements are testable with keyboard navigation
+
+**Backend (FastAPI/pytest)**
+- **Framework**: pytest with unittest.mock.AsyncMock and monkeypatch
+- **Command**: Run `pytest` from the backend directory
+- **Structure**:
+  1. Import relevant testing tools and endpoint modules
+  2. Mock external dependencies (Supabase, authentication)
+  3. Make HTTP requests using TestClient
+  4. Assert response status codes and body content
+  5. Verify mocked functions were called with correct parameters
+- **Best Practices**:
+  - Mock all database calls to avoid hitting real database
+  - Test both success and failure paths
+  - Verify authentication and authorization logic
+  - Use monkeypatch for overriding dependencies
+  - Ensure proper cleanup with rollback testing
 
 ### Integration Testing
-- [ ] Placeholder: Guidelines for integration between modules/services.
+
+**Frontend-Backend Integration**
+- Test complete user flows that span frontend and backend (e.g., login to fetch data to display)
+- Use staging environment with test database
+- Validate API contract adherence between frontend and backend
+- Test error handling and network failure scenarios
+
+**Database Integration**
+- Test database queries with actual PostgreSQL/PostGIS operations
+- Verify cascade deletes and foreign key constraints
+- Test spatial queries for location-based features
+- Validate UUID generation and timestamp management
+
+**Third-Party Integration**
+- Test Supabase authentication flows (signup, login, password reset)
+- Verify API key validation for protected endpoints
+- Test PostGIS spatial operations and queries
 
 ### Other Tests
-- [ ] Placeholder: Add practices for regression, performance, or acceptance testing.
+
+**End-to-End (E2E) Testing**
+- Test complete user journeys from UI to database
+- Validate critical paths: user registration, ordering, payment
+- Test across different browsers and devices
+- Use production-like environment
+
+**Regression Testing**
+- Run full test suite before each deployment
+- Maintain test coverage above 80% for critical paths
+- Automate through CI/CD pipeline (GitHub Actions)
+- Test backward compatibility when updating APIs
 
 ---
 
 ## Documentation Practices
 
 
-- [ ] Placeholder: Standards for inline code comments.
-- [ ] Placeholder: API documentation practices.
-- [ ] Placeholder: System-level documentation (architecture diagrams, ADRs).
-- [ ] Placeholder: README and changelog requirements.
+### API Documentation
+
+**Endpoint Documentation**
+- All API endpoints are automatically documented via FastAPI's OpenAPI integration
+- Access interactive API docs at `/docs` (Swagger UI) or `/redoc` (ReDoc)
+- Each endpoint must include:
+  - Clear summary and description
+  - Request body schema with examples
+  - Response models for all status codes
+  - Authentication requirements
+  - Possible error responses
+
+**API Contract**
+- Maintain OpenAPI specification (`openapi.json`) in version control
+- Update API documentation whenever endpoints change
+- Use Pydantic models to auto-generate accurate schemas
+- Include example requests and responses in endpoint descriptions
+
+### System-Level Documentation
+
+**Database Schema**
+- Comprehensive database documentation in `database.mdx`
+- Include ER diagrams showing table relationships
+- Document all tables, columns, constraints, and indexes
+- Explain design rationale for complex schema decisions
+
+### README and Changelog Requirements
+
+**README Standards**
+- **Root README**: Overview of entire project, tech stack, Setup instructions, environment variables
+- Must include:
+  - Project description and purpose
+  - Installation steps
+  - How to run locally
+  - How to run tests
 
 ---
 
@@ -110,10 +199,82 @@ This document defines the rules, guidelines, and best practices for writing, tes
 ## Deployment Procedures
 
 
-- [ ] Placeholder: Development environment setup.
-- [ ] Placeholder: Staging/testing environment process.
-- [ ] Placeholder: Production deployment workflow.
-- [ ] Placeholder: Rollback and recovery procedures.
+### Development Environment Setup
+
+**Prerequisites**
+- Node.js (v18 or higher) and npm
+- Python (v3.10 or higher)
+- uv package manager for Python
+- Git for version control
+- Supabase account and project
+
+**Backend Setup**
+1. Navigate to backend directory
+2. Install dependencies:
+   ```bash
+   uv sync
+   ```
+3. Create `.env` file with required variables:
+   ```
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_KEY=your_service_key
+   ```
+4. Run the development server:
+   ```bash
+   fastapi dev main.py
+   ```
+5. Access API docs at `http://localhost:8000/docs`
+
+**Frontend Setup**
+1. Navigate to frontend directory
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create `.env` file:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   VITE_API_URL=http://localhost:8000
+   ```
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+5. Access app at `http://localhost:5173`
+
+### Production Deployment Workflow
+
+**Continuous Deployment Pipeline**
+- Automated via GitHub Actions on merge to `main` branch
+- Runs comprehensive test suite before deployment
+- Deploys frontend and backend independently
+
+**Frontend Deployment (Vercel)**
+1. Code merged to `main` branch
+2. GitHub Actions triggers Vercel build
+3. Vercel builds React app and runs optimizations
+4. Preview deployment created for review
+5. Automatic production deployment on approval
+6. Environment variables managed in Vercel dashboard
+7. Rollback available via Vercel deployments page
+
+**Backend Deployment (Render)**
+1. Code merged to `main` branch
+2. Render detects changes and starts build
+3. Dependencies installed via `uv`
+4. Health checks verify service is running
+5. Traffic gradually shifted to new deployment
+6. Old version kept for quick rollback
+7. Environment variables managed in Render dashboard
+
+**Deployment Checklist**
+- All tests passing in CI/CD pipeline
+- Code reviewed and approved by team member
+- Documentation updated for new features
+- Environment variables configured correctly
+- Monitoring and logging configured
 
 ---
 
